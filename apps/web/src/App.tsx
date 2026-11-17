@@ -12,6 +12,9 @@ const VirtualCube = lazy(() =>
   import("./routes/VirtualCube").then((m) => ({ default: m.VirtualCube })),
 );
 
+// The scan test page loads only when opened.
+const ScanLab = lazy(() => import("./routes/ScanLab").then((m) => ({ default: m.ScanLab })));
+
 // BASE_URL is "/" normally, or "/cube/" when hosted inside a folder.
 const basename = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";
 
@@ -28,6 +31,14 @@ const router = createBrowserRouter(
           element: (
             <Suspense fallback={null}>
               <VirtualCube />
+            </Suspense>
+          ),
+        },
+        {
+          path: "scan",
+          element: (
+            <Suspense fallback={null}>
+              <ScanLab />
             </Suspense>
           ),
         },

@@ -30,6 +30,9 @@ export function Layout() {
             <NavLink to="/cube" className={navLinkClass}>
               {t("nav.cube")}
             </NavLink>
+            <NavLink to="/scan" className={navLinkClass}>
+              {t("nav.scan")}
+            </NavLink>
             <NavLink to="/guide" className={navLinkClass}>
               {t("nav.guide")}
             </NavLink>

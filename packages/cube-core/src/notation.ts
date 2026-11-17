@@ -14,11 +14,10 @@ import { Alg, Move as CubingMove } from "cubing/alg";
 import type { Amount, Move, MoveFamily } from "./moves";
 
 export class NotationError extends Error {
-  constructor(
-    message: string,
-    readonly token: string,
-  ) {
+  readonly token: string;
+  constructor(message: string, token: string) {
     super(message);
+    this.token = token;
     this.name = "NotationError";
   }
 }

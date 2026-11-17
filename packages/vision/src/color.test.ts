@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { colorDistance, hexToOklab, medianLab, srgbToOklab } from "./color";
+import { colorDistance, hexToOklab, medianLab, oklabToHex, srgbToOklab } from "./color";
 
 describe("OKLab", () => {
   it("matches published reference values", () => {
@@ -30,5 +30,13 @@ describe("OKLab", () => {
         [0.9, 2, 1],
       ]),
     ).toEqual([0.2, 1, 1]);
+  });
+});
+
+describe("oklabToHex", () => {
+  it("round-trips sRGB colors", () => {
+    for (const hex of ["#ff7a00", "#00a651", "#f4f5f7", "#0062d6", "#000000", "#ffffff"]) {
+      expect(oklabToHex(hexToOklab(hex))).toBe(hex);
+    }
   });
 });

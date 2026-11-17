@@ -35,8 +35,11 @@ export interface FrameReport {
 }
 
 export interface SessionOptions {
-  /** True if the camera picture is flipped left to right (from calibration). */
-  mirrored: boolean;
+  /**
+   * True if the camera picture is flipped left to right (from calibration).
+   * "unknown" works for cubes with known colors (see assembleCube).
+   */
+  mirrored: boolean | "unknown";
   knownColors?: Readonly<Record<Face, Lab>> | null;
 }
 
@@ -180,7 +183,7 @@ export class ScanSession {
    * the user's right, which is the picture's left unless the feed is flipped.
    */
   spinDirection(): "y" | "y'" | null {
-    if (this.spinVotes === 0) return null;
+    if (this.spinVotes === 0 || this.options.mirrored === "unknown") return null;
     const towardImageLeft = this.spinVotes < 0;
     return towardImageLeft !== this.options.mirrored ? "y" : "y'";
   }

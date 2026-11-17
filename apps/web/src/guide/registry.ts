@@ -14,10 +14,16 @@ export const FEATURE_IDS = [
   "feature.guide",
   "feature.virtual-cube",
   "feature.inspect",
+  "feature.scan-lab",
   "feature.diagnostics",
 ] as const;
 
-export const SETTINGS_KEYS = ["settings.appearance.theme", "settings.cube.arrows"] as const;
+export const SETTINGS_KEYS = [
+  "settings.appearance.theme",
+  "settings.cube.arrows",
+  "settings.scan.flip",
+  "settings.scan.mirror-preview",
+] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
 export type SettingsKey = (typeof SETTINGS_KEYS)[number];

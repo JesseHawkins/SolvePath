@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { FAKE_CAMERA_FILE } from "./apps/web/e2e/support/fake-camera";
 
 /**
  * End-to-end tests run against the production build (`vite preview`),
@@ -11,6 +12,8 @@ const externalBaseUrl = process.env.E2E_BASE_URL;
 
 export default defineConfig({
   testDir: "apps/web/e2e",
+  // Makes the fake camera clip (a synthetic scan) for the scan test.
+  globalSetup: "./apps/web/e2e/support/global-setup.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -20,8 +23,24 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /scan\.spec/ },
+    { name: "mobile-chromium", use: { ...devices["Pixel 7"] }, testIgnore: /scan\.spec/ },
+    {
+      // Chrome with a fake webcam that plays a synthetic scan of a known cube.
+      name: "camera",
+      testMatch: /scan\.spec/,
+      use: {
+        ...devices["Desktop Chrome"],
+        permissions: ["camera"],
+        launchOptions: {
+          args: [
+            "--use-fake-device-for-media-stream",
+            "--use-fake-ui-for-media-stream",
+            `--use-file-for-fake-video-capture=${FAKE_CAMERA_FILE}`,
+          ],
+        },
+      },
+    },
   ],
   ...(externalBaseUrl
     ? {}

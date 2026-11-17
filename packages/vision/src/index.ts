@@ -15,3 +15,4 @@ export * from "./cluster";
 export * from "./pieces";
 export * from "./assemble";
 export * from "./session";
+export * from "./calibrate";
