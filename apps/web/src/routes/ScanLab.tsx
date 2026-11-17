@@ -13,7 +13,7 @@ import {
   type CubeState,
   type Face,
 } from "@solvepath/cube-core";
-import { hexToOklab, oklabToHex, type Lab } from "@solvepath/vision";
+import { hexToOklab, nameScannedColors, oklabToHex, sameCube, type Lab } from "@solvepath/vision";
 import * as Comlink from "comlink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,7 +26,6 @@ import {
   useFramePump,
   type CameraStatus,
 } from "../vision/camera";
-import { nameScannedColors, sameCube } from "../vision/check";
 import type { VisionApi, WorkerFrame } from "../vision/worker";
 
 const button =

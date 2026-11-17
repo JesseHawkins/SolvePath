@@ -4,7 +4,7 @@ Working notes for anyone (human or AI) building SolvePath. Keep this file curren
 
 ## Current milestone
 
-**M1 (Cube core + 3D cube): complete, waiting for owner review.** Next: M2 (vision spike). Do not start M2 until the owner confirms.
+**M2 (vision spike): built, waiting for the owner.** The owner tests Scan Lab on their phones and records real clips (`npm run fixtures:record`). Then we decide go/no-go on the fallbacks (PLAN.md 5.12) together. Do not start M3 until the owner confirms.
 
 Milestone plan: `docs/PLAN.md` Section 12. **Queued owner requests: `docs/PLAN.md` 12.3. Check it at the start of every build.** Changelogs: `docs/milestones/`. Lessons: `docs/LESSONS.md`.
 
@@ -37,6 +37,9 @@ Milestone plan: `docs/PLAN.md` Section 12. **Queued owner requests: `docs/PLAN.m
 | License check                               | `npm run check:licenses`                                    |
 | Everything CI runs (minus e2e)              | `npm run ci`                                                |
 | Build static site                           | `npm run build` → `apps/web/dist`                           |
+| Vision accuracy report                      | `npm run vision:report` (writes `docs/vision-accuracy.md`)  |
+| Record a real test clip (dev only, HTTPS)   | `npm run fixtures:record`                                   |
+| Add a recorded clip                         | `npm run fixtures:add -- <clip> <facts.json>`               |
 | Full-mode stack                             | `make up` / `make down` / `make logs` (needs `deploy/.env`) |
 
 ## Layout
@@ -64,6 +67,7 @@ tools/                 Node scripts (run directly with Node's TypeScript support
 - **3D cube:** `apps/web/src/cube3d`. One `CubeView` per store. The store's `state` is the truth; the view plays the store's `queue`. Swipe math is in `swipe.ts` and has unit tests.
 - **One three.js:** the root `package.json` `overrides` pins `three` and `@types/three`, because cubing.js asks for an older three. Check `npm ls three` after upgrades.
 - **Workers:** anything slow (vision, solvers) runs in a Web Worker. cubing.js manages its own workers.
+- **Vision (`packages/vision`):** pure TypeScript, no DOM, runs in `apps/web/src/vision/worker.ts` via Comlink. Images are raw camera pixels (never mirrored). Test with the synthetic camera (`packages/vision/src/synthetic`), never with hand-labeled stickers. Every change to vision should keep `npm run vision:report` at or above `packages/vision/accuracy-baseline.json` (`UPDATE_BASELINE=1` to raise it). The browser scan test uses Chrome's fake webcam playing a synthetic .y4m clip (made by `apps/web/e2e/support/fake-camera.ts`).
 - **Vite build settings for cubing.js** (`apps/web/vite.config.ts`): `modulePreload: false` plus a separate `vite-preload-helper` chunk. Without both, cubing.js's search worker imports the main app bundle and crashes on `document`. The Diagnostics e2e test guards this. Don't remove either without rerunning it.
 - **Tests:** unit tests next to the code (`*.test.ts`). Property tests with fast-check. Browser tests in `apps/web/e2e/`, including axe accessibility scans in every theme.
 - **Formatting:** Prettier, 100 columns, double quotes, trailing commas.

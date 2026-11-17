@@ -1,6 +1,6 @@
 # SolvePath: Build Plan
 
-Status: **approved 2026-11-16. M0 and M1 done (see `docs/milestones/`).** Revision 5 records changes found during M0 and M1.
+Status: **approved 2026-11-16. M0 and M1 done; M2 built, waiting for real clips (see `docs/milestones/`).** Revision 6 adds what the M2 vision spike found (marked "M2 finding" in Section 5).
 Date: 2026-11-16
 Source spec: `SOLVEPATH_SPEC.md`
 
@@ -297,6 +297,13 @@ Search is coarse-to-fine: a grid of candidate centers and sizes on the 320 px im
 
 **Auto-capture:** when a face has been presented and stable (low motion, same 9 color labels) for 4 processed frames (~330 ms), we capture it. We keep the per-sticker **median over those frames** for robustness, then play the capture animation and fill that face on the mini cube.
 
+**M2 findings (5.2-5.3):**
+
+- The worker gets one picture per frame, 270 pixels on its short side. The full-resolution crop waits for marking mode (M4).
+- Face finding starts from the "comb" of four evenly spaced edge lines in the column and row edge profiles, then refines. This is fast (about 4 ms on a desktop) and reliable on synthetic video.
+- **"A face is presented" is steadiness, not score.** A grid can score well on a face turned 15 to 45 degrees. Capture needs 4 steady frames in a row (same place, colors change by at most 0.06).
+- Dark pictures are brightened slowly (scaling OKLab is the same as more exposure), only when the brightest part of the box is below L = 0.6.
+
 ### 5.4 Left/right calibration (once per camera)
 
 - Prompt: "Hold the cube up, then move it to your right" with a 3-second countdown.
@@ -331,6 +338,12 @@ stateDiagram-v2
 **Assembly with constraint checking (the key robustness trick):** motion gives us a best guess, then piece validity confirms it. We enumerate hypotheses: side order (2 directions) x top rotation (4) x bottom rotation (4) = 32. For each one we build a facelet cube, fill occluded stickers by inference, and score it by (a) sum of per-sticker color log-likelihoods and (b) cube-core validity (every corner and edge is a real piece, twist, flip, parity). We keep the best **valid** hypothesis. If two valid hypotheses are close, or none are valid, we ask the user to rescan just the doubtful face.
 
 **Mirror ambiguity (why calibration matters):** for a **known** color scheme (the standard one, or a saved profile), a mirrored assembly produces impossible corners, so validity catches it. For a **brand-new custom-color cube** the scheme is learned from the same scan, and a mirror-image scan is self-consistent. Only the measured spin direction (plus calibration) can tell them apart. If the direction signal is weak, the review screen asks one question: "Is this the color on your right?" with two big buttons. Covered by a dedicated test (6.8).
+
+**M2 findings (5.5):**
+
+- **Assembly reads the most likely real cube piece by piece** (`packages/vision/src/pieces.ts`): corners and edges are matched to spots with the Hungarian algorithm, using every sticker's fit, then the twist, flip, and parity rules are enforced by trying every swap and 3-cycle. Hidden stickers count the same for every color. This replaces the "validity repair" step in 5.6 item 5.
+- Hypotheses: spin direction (2) x top turn (4) x bottom turn (4) x which hidden color is on top (2) = 64.
+- **The mirror-image risk is about the flip setting.** With the right flip setting, a scan has one answer even without the spin direction. With the wrong one, the mirror-image cube fits just as well. With known colors (standard or a saved profile), the mirror image has impossible centers, so the app works out the flip by itself (`mirrored: "unknown"`). **Calibration is only needed for new color sets.**
 
 ### 5.6 Color classification
 

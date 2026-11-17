@@ -9,7 +9,7 @@
 import { assembleCube, type AssembleResult, type FaceScan } from "./assemble";
 import { colorDistance, medianLab, type Lab } from "./color";
 import { fitGrid, type Box, type GridPose } from "./grid";
-import type { LabImage } from "./image";
+import { applyGain, exposureGain, type LabImage } from "./image";
 import { lightnessStrip, stripShift } from "./motion";
 import { GLARE_LIMIT, sampleStickers } from "./sample";
 import type { Face } from "@solvepath/cube-core";
@@ -53,6 +53,8 @@ const MAX_CHANGE = 0.06;
 const MAX_MOVE = 0.06;
 /** Two faces are the same if their stickers differ by less than this on average. */
 const SAME_FACE = 0.05;
+/** How fast the brightening follows the light (share per frame). */
+const GAIN_SPEED = 0.1;
 /** After a capture, the face has to change this much before we look for the next one. */
 const RELEASE_CHANGE = 0.15;
 
@@ -92,6 +94,8 @@ export class ScanSession {
   bottom: FaceScan | null = null;
   step: ScanStep = "sides";
   private assembled: AssembleResult | null = null;
+  /** How much the last picture was brightened (1 = not at all). Lets the app say "more light, please". */
+  gain = 1;
 
   constructor(options: SessionOptions) {
     this.options = options;
@@ -103,6 +107,17 @@ export class ScanSession {
     if (this.stripX) this.motionX += stripShift(this.stripX, strip, Math.round(box.width * 0.08));
     this.stripX = strip;
 
+    // Brighten a dark picture first, like a camera's auto exposure.
+    const margin = box.width * 0.1;
+    const area = {
+      x: box.x - margin,
+      y: box.y - margin,
+      width: box.width + 2 * margin,
+      height: box.height + 2 * margin,
+    };
+    // Change slowly, so the same color looks the same on every face.
+    this.gain = this.gain * (1 - GAIN_SPEED) + exposureGain(image, area) * GAIN_SPEED;
+    applyGain(image, area, Math.abs(this.gain - 1) < 0.02 ? 1 : this.gain);
     const fit = fitGrid(image, { box, previous: this.previous });
     if (!fit || fit.score < MIN_SCORE) {
       this.recent = [];

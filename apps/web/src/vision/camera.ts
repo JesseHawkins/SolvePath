@@ -71,17 +71,30 @@ export function useCamera() {
   return { attachVideo, video, status, deviceId, start, stop };
 }
 
+let fallbackCanvas: HTMLCanvasElement | null = null;
+
 /** A small copy of the current video frame, ready to move to the worker. */
 export async function grabFrame(video: HTMLVideoElement): Promise<ImageBitmap | null> {
   const w = video.videoWidth;
   const h = video.videoHeight;
   if (!w || !h) return null;
   const scale = PROCESS_SHORT_SIDE / Math.min(w, h);
-  return createImageBitmap(video, {
-    resizeWidth: Math.round(w * scale),
-    resizeHeight: Math.round(h * scale),
-    resizeQuality: "medium",
-  });
+  const width = Math.round(w * scale);
+  const height = Math.round(h * scale);
+  try {
+    return await createImageBitmap(video, {
+      resizeWidth: width,
+      resizeHeight: height,
+      resizeQuality: "medium",
+    });
+  } catch {
+    // Some browsers can't shrink while copying: shrink on a small canvas instead.
+    fallbackCanvas ??= document.createElement("canvas");
+    fallbackCanvas.width = width;
+    fallbackCanvas.height = height;
+    fallbackCanvas.getContext("2d")?.drawImage(video, 0, 0, width, height);
+    return createImageBitmap(fallbackCanvas);
+  }
 }
 
 /**

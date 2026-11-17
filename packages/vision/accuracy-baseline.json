@@ -1,0 +1,12 @@
+{
+  "synthetic": {
+    "clips": 16,
+    "cubes": 16,
+    "captures": 16
+  },
+  "real": {
+    "clips": 0,
+    "cubes": 0,
+    "captures": 0
+  }
+}

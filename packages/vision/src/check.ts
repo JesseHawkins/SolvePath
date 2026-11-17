@@ -16,7 +16,8 @@ import {
   type Face,
   type StickerColor,
 } from "@solvepath/cube-core";
-import { assign, colorDistance, hexToOklab, type Lab } from "@solvepath/vision";
+import { colorDistance, hexToOklab, type Lab } from "./color";
+import { assign } from "./hungarian";
 
 /** The 54 sticker colors of a state, by color name. */
 function colorNames(state: CubeState, colorOf: Record<Face, StickerColor>): StickerColor[] {

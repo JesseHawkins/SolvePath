@@ -6,3 +6,5 @@ test-results/
 package-lock.json
 LICENSE
 SOLVEPATH_SPEC.md
+# Written by npm run vision:report
+docs/vision-accuracy.md

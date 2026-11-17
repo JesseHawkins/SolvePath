@@ -6,5 +6,5 @@
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true
   },
-  "include": ["*.ts", "../*.config.ts", "../apps/web/vite.config.ts"]
+  "include": ["*.ts", "fixture-recorder/*.ts", "../*.config.ts", "../apps/web/vite.config.ts"]
 }

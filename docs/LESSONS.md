@@ -111,3 +111,26 @@ A candid log, updated at the end of every milestone. It's the raw material for t
 
 - Write the screenshot script at the start of any visual work, not at the end.
 - When adding a library that brings its own copy of a big dependency, check `npm ls <dep>` right away, not after building.
+
+## M2: Vision spike
+
+**What worked**
+
+- **A synthetic camera first.** A small software renderer draws a scrambled cube in a hand, spinning and tipping, with lighting presets and a flipped feed. Every frame comes from a real cube state (Rule 3), so tests always know the right answer. It turned "does vision work?" into fast, repeatable unit tests and found most of the problems below before any real video.
+- **Finding the face by its "comb".** Brute-force grid search kept getting stuck: the score drops sharply a few pixels off, so a coarse search lands next to the face, not on it. Adding up color edges by column and by row, then looking for four evenly spaced lines, finds the face fast and almost always on the first try. Search then nudges it into place. Face finding went from 17 ms to 4 ms.
+- **Reading the most likely real cube, piece by piece,** instead of reading stickers and then repairing mistakes. Corners and edges are matched to their spots with the Hungarian algorithm, using how well every sticker fits. Every color then has exactly 9 stickers for free, hidden stickers (under fingers) are filled in by the cube's rules, and one misread sticker gets fixed without a special step.
+- **A fake webcam in the browser test.** Chrome can play a .y4m video as its camera. We render a synthetic scan to .y4m once (cached), so the browser test runs the whole real path: camera, frame pump, worker, scan, and checks the exact cube.
+
+**Surprises**
+
+- **A face's score can't tell "held" from "mid-spin".** Some frames 15 to 45 degrees into a turn scored as high as held faces: a square grid finds a good-looking patch across two faces. Steadiness over several frames is what tells them apart. Our first test of this was unfair, too: turns ease in and out, so their first and last frames really are face-on.
+- **A finger can hide more than a center.** When the top is tipped toward the camera, the finger also covers the edge sticker next to the center. Piece-by-piece reading handles it.
+- **The mirror-image risk is about the flip setting, not the spin.** The plan said only the spin direction could tell a new-color cube from its mirror image. In fact, with the right flip setting there's only one answer, because the top and bottom can only be turned, never mirrored. With the wrong setting, every face is mirrored and the mirror-image cube fits perfectly. With known colors (the standard set or a saved profile), the mirror image has impossible centers, so the app can work out the flip by itself. Calibration only matters for brand-new color sets.
+- **Real ambiguity exists.** If three hidden stickers sit on edges that all show the same visible color, those edges can be cycled into a different real cube that matches everything seen. A property test found it. Real grips hide at most two edge stickers, and that case always has one answer.
+- **Brightening dark pictures broke other ones at first.** Brightening every frame on its own made the same color look different from face to face, which hurt color grouping. Brightening only dark pictures, and changing it slowly, fixed both. Real phone cameras also change exposure between faces, so watch for this in real clips.
+- **Our own renderer was the slow part** (272 ms per frame, mostly the blurry background). Drawing the background once per scan made it 30 ms.
+- **Tooling:** the vision package has no Node types (it runs in a worker), so the accuracy report lives in its own folder with its own tsconfig. Node can't run our packages directly (imports have no file extensions), so scripts that need them run under Vitest or Playwright, which can.
+
+**Do differently next time**
+
+- Write the fair test first. Twice a "failing" test was really a wrong expectation (mid-spin frames that were face-on, hidden stickers that were truly ambiguous). Ask "what would a perfect answer be here?" before blaming the code.

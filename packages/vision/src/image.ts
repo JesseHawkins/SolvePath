@@ -97,3 +97,57 @@ export function downscale(image: RgbaImage, width: number): RgbaImage {
   }
   return { width, height, data };
 }
+
+/** Area to measure or brighten. */
+type Area = { x: number; y: number; width: number; height: number };
+
+function bounds(image: LabImage, box: Area) {
+  return {
+    x0: Math.max(0, Math.floor(box.x)),
+    y0: Math.max(0, Math.floor(box.y)),
+    x1: Math.min(image.width, Math.ceil(box.x + box.width)),
+    y1: Math.min(image.height, Math.ceil(box.y + box.height)),
+  };
+}
+
+/**
+ * How much to brighten a picture, like a camera's auto exposure: 1 if the
+ * box is bright enough, more if it's dark.
+ */
+export function exposureGain(image: LabImage, box: Area): number {
+  const { x0, y0, x1, y1 } = bounds(image, box);
+  const values: number[] = [];
+  for (let y = y0; y < y1; y += 3) {
+    for (let x = x0; x < x1; x += 3) values.push(image.L[y * image.width + x]!);
+  }
+  if (values.length === 0) return 1;
+  values.sort((a, b) => a - b);
+  const bright = values[Math.floor(values.length * 0.95)]!;
+  if (bright >= DARK) return 1;
+  return Math.min(MAX_GAIN, TARGET_BRIGHT / Math.max(bright, 1e-3));
+}
+
+/**
+ * Brightens the box by `gain`. In OKLab, changing the exposure scales L, a,
+ * and b by the same amount, so this is the same as the camera letting in
+ * more light (noise and all).
+ */
+export function applyGain(image: LabImage, box: Area, gain: number): void {
+  if (gain === 1) return;
+  const { x0, y0, x1, y1 } = bounds(image, box);
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = y * image.width + x;
+      image.L[i]! *= gain;
+      image.a[i]! *= gain;
+      image.b[i]! *= gain;
+    }
+  }
+}
+
+/** Below this, the brightest part of the box counts as dark. */
+const DARK = 0.6;
+/** Brighten so the brightest part reaches about this. */
+const TARGET_BRIGHT = 0.85;
+/** Never brighten more than this (very dark pictures are mostly noise). */
+const MAX_GAIN = 1.8;

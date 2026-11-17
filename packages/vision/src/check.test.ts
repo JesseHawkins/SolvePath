@@ -10,7 +10,7 @@ import {
   type CubeState,
   type Face,
 } from "@solvepath/cube-core";
-import { hexToOklab, type Lab } from "@solvepath/vision";
+import { hexToOklab, type Lab } from "./color";
 import { describe, expect, it } from "vitest";
 import { nameScannedColors, sameCube } from "./check";
 

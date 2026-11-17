@@ -26,7 +26,10 @@
     "test:e2e": "playwright test",
     "check:guide": "node tools/check-guide-anchors.ts",
     "check:licenses": "node tools/check-licenses.ts",
-    "ci": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run check:guide && npm run check:licenses && npm run build"
+    "ci": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run check:guide && npm run check:licenses && npm run build",
+    "vision:report": "vitest run --config packages/vision/report/vitest.config.ts",
+    "fixtures:add": "node tools/fixtures-add.ts",
+    "fixtures:record": "vite --config tools/fixture-recorder/vite.config.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
