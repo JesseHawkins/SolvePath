@@ -139,3 +139,39 @@ test("remembers the arrow style", async ({ page }) => {
   await expect(face).toBeChecked();
   expect(errors).toEqual([]);
 });
+
+test("Inspect spins the view without turning the cube", async ({ page }) => {
+  const { cube, errors, history, status } = await openCube(page);
+  const inspect = page.getByRole("button", { name: "Inspect" });
+  await expect(inspect).toHaveAttribute("aria-pressed", "false");
+  await inspect.click();
+  await expect(inspect).toHaveAttribute("aria-pressed", "true");
+  await expect(cube).toHaveAttribute("data-view-home", "false");
+
+  // Dragging spins the view: no moves are made.
+  const box = (await cube.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 120, y + 40, { steps: 8 });
+  await page.mouse.up();
+  await expect(history).toHaveText("No moves yet.");
+  await expect(status).toHaveAttribute("data-solved", "true");
+
+  // Moves from buttons still work while inspecting.
+  await page.getByRole("button", { name: "Turn R", exact: true }).click();
+  await expect(history).toHaveText("R");
+
+  // Leaving Inspect glides the view home, and then swipes turn layers again.
+  await inspect.click();
+  await expect(inspect).toHaveAttribute("aria-pressed", "false");
+  await expect(cube).toHaveAttribute("data-view-home", "true");
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y - 30, { steps: 5 });
+  await page.mouse.move(x, y - 60, { steps: 5 });
+  await page.mouse.up();
+  await expect(history).toHaveText("R R");
+  expect(errors).toEqual([]);
+});

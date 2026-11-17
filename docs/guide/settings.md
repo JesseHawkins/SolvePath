@@ -21,6 +21,6 @@ When the cube shows you a move one at a time, an arrow shows which way it turns.
 
 Face arrows are only for the six outer faces. Two-layer moves (like r) and middle moves (M, E, S) always get straight arrows, and turning the whole cube always gets the big curved arrow.
 
-You can't see the left, bottom, or back face from where you're looking. Their circles float just beyond that face, and you can see them through the cube. Because you're looking at them from behind, a clockwise circle there looks like it's going the other way. That's how the turn really looks from where you are.
+Every circle lies flat on its own face. You can't see the left, bottom, or back face from the normal view, so for those faces you also get the straight arrow on a face you can see. To see the circle itself, press [Inspect](#feature.inspect) and spin the cube around.
 
 Your choice is saved on this device.

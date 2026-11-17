@@ -44,6 +44,16 @@ The box next to the cube tells you when it's solved. Turning the whole cube does
 | ;   | y    | A   | y'   |
 | P   | z    | Q   | z'   |
 
+## Inspect {#feature.inspect}
+
+Press **Inspect** in the corner of the cube to look at it from any side. Drag to spin it freely in any direction. You can also see the faces that are usually hidden (left, bottom, and back).
+
+Inspecting only changes how you look at the cube. It doesn't turn the cube in your hands, so the letters still mean the faces from your normal view: R is still the face on your right when you look the normal way. Arrows and highlights stay stuck to the cube, so they always point at the part that will really turn.
+
+You can still make moves while inspecting, with the keys or the buttons. Swipes spin the view instead of turning layers.
+
+Press **Inspect** again (or **Esc**) to go back. The cube glides back to the normal view.
+
 ## Trying moves {#cube.tryMoves}
 
 Type some moves in the box, like `R U R' U'`, then press **Do them**. To learn what the letters mean, see [Moves and notation](#glossary.notation).

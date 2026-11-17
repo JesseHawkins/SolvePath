@@ -102,6 +102,7 @@ A candid log, updated at the end of every milestone. It's the raw material for t
 - **Whole-cube turns need a different arrow.** The owner suggested a curved arrow that wraps around the cube, longer than a face. It's in, and a unit test checks that the arc heads the way the cube turns at every point along it.
 - **The highlight for r lit only the R layer.** The highlight now follows the move's layers, not its face letter.
 - **The owner asked for a choice of arrow styles** (straight "section" arrows or circles on the turning face), and then narrowed it while the work was underway: circles only for the six outer faces. The faces you can't see were the hard part. A circle on the back face, drawn see-through, lands over the top face from our viewpoint. Making those circles faint helps, but it's the weakest spot in the design. Settings now use Zustand's `persist` middleware instead of hand-written localStorage code.
+- **Floating see-through circles for hidden faces didn't look good.** The better answer came from the owner: an **Inspect** mode that spins only the view. Then every circle can lie flat on its own face, and hidden faces also get a straight arrow you can see from the normal view. The view and its arrows live in one three.js group, so spinning the view keeps the arrows on the right face for free. Letters keep meaning the normal view's faces, which matches how notation works: inspecting is looking, not turning the cube in your hands.
 
 **Do differently next time**
 

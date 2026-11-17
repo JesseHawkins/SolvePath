@@ -104,10 +104,20 @@ describe("arrowFor, face arrows", () => {
     }
   });
 
-  it("floats the circle beside the cube for faces you can't see", () => {
-    for (const f of ["U", "R", "F"]) expect(face(f).hidden, f).toBe(false);
+  it("lays every circle flat on its face", () => {
+    expect(face("L").center).toEqual([-1.53, 0, 0]);
+    expect(face("B").center).toEqual([0, 0, -1.53]);
+  });
+
+  it("adds a straight arrow for faces you can't see from the normal view", () => {
+    for (const f of ["U", "R", "F"]) {
+      expect(face(f).hidden, f).toBe(false);
+      expect(face(f).alsoStrip, f).toBeNull();
+    }
     for (const f of ["D", "L", "B"]) expect(face(f).hidden, f).toBe(true);
-    expect(face("L").center[0]).toBeLessThan(-2);
+    // It's the same straight arrow the section style would show.
+    expect(face("L").alsoStrip).toEqual(arrowFor(parseAlg("L")[0]!, "section"));
+    expect(face("B'").alsoStrip).toEqual(arrowFor(parseAlg("B'")[0]!, "section"));
   });
 
   it("uses two heads for half turns", () => {

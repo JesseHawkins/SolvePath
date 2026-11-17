@@ -13,6 +13,7 @@ export const FEATURE_IDS = [
   "feature.home",
   "feature.guide",
   "feature.virtual-cube",
+  "feature.inspect",
   "feature.diagnostics",
 ] as const;
 

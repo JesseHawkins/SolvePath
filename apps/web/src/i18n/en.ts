@@ -61,6 +61,9 @@ export const en = {
     help: "Swipe a row of stickers to turn it. To turn the whole cube, swipe in the space around it, or drag anywhere with the right mouse button (or hold Shift). With a keyboard, click the cube first, then use the keys listed in the Guide.",
     noWebgl:
       "This browser can't draw 3D right now. Try turning on hardware acceleration, or use a different browser.",
+    inspect: "Inspect",
+    inspectHint:
+      "Drag to look around. Moves still turn the faces from your normal view. Press Inspect again to go back.",
     solved: "Solved!",
     notSolved: "Not solved yet",
     moveCount_one: "{{count}} move",
@@ -76,7 +79,7 @@ export const en = {
       sectionHelp: "A straight arrow on the part of the cube that moves, pointing the way it goes.",
       face: "Face arrows",
       faceHelp:
-        "A circle on the face that turns, going the way that face turns. Two-layer and middle moves still get straight arrows.",
+        "A circle on the face that turns, going the way that face turns. Two-layer and middle moves still get straight arrows. Faces you can't see also get a straight arrow.",
     },
     buttons: {
       layer: {

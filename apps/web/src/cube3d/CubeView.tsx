@@ -77,6 +77,8 @@ export interface CubeViewProps {
 interface Bridge {
   pick: (clientX: number, clientY: number) => number | null;
   project: (point: Vec3) => { x: number; y: number };
+  /** Spins the view (not the cube) by a drag of dx, dy pixels. */
+  rotateView: (dx: number, dy: number) => void;
 }
 
 function hasWebGL(): boolean {
@@ -107,6 +109,10 @@ export function CubeView({
   const swipe = useRef<{ id: number; x: number; y: number; sticker: number | null; done: boolean }>(
     null,
   );
+  // Inspect mode: dragging spins the view freely. Moves still use the normal view.
+  const [inspecting, setInspecting] = useState(false);
+  // False while the view is turned away from normal (inspecting, or gliding back).
+  const [viewHome, setViewHome] = useState(true);
   const [keyMoves, setKeyMoves] = useState<ReadonlyMap<string, Move> | null>(null);
   // True once the 3D scene is up and swipes can find stickers.
   const [ready, setReady] = useState(false);
@@ -122,6 +128,10 @@ export function CubeView({
   }, [interactive]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape" && inspecting) {
+      setInspecting(false);
+      return;
+    }
     if (!interactive || !keyMoves || e.ctrlKey || e.metaKey || e.altKey) return;
     const move = keyMoves.get(e.code);
     if (!move) return;
@@ -130,7 +140,8 @@ export function CubeView({
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (!interactive || !bridge.current || !e.isPrimary) return;
+    if (!bridge.current || !e.isPrimary) return;
+    if (!inspecting && (!interactive || !viewHome)) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     // Right-drag or Shift-drag turns the whole cube, wherever it starts.
     const wholeCube = e.button === 2 || e.shiftKey;
@@ -146,6 +157,12 @@ export function CubeView({
   const onPointerMove = (e: React.PointerEvent) => {
     const s = swipe.current;
     if (!s || s.done || s.id !== e.pointerId || !bridge.current) return;
+    if (inspecting) {
+      bridge.current.rotateView(e.clientX - s.x, e.clientY - s.y);
+      s.x = e.clientX;
+      s.y = e.clientY;
+      return;
+    }
     const drag = { x: e.clientX - s.x, y: e.clientY - s.y };
     if (Math.hypot(drag.x, drag.y) < SWIPE_PX) return;
     s.done = true;
@@ -169,13 +186,17 @@ export function CubeView({
       data-testid="cube-view"
       data-facelets={facelets}
       data-ready={ready}
+      data-inspecting={inspecting}
+      data-view-home={viewHome}
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endSwipe}
       onPointerCancel={endSwipe}
       onContextMenu={(e) => interactive && e.preventDefault()}
-      className="aspect-square w-full touch-none select-none rounded-3xl outline-none focus-visible:ring-4 focus-visible:ring-focus"
+      className={`relative aspect-square w-full touch-none select-none rounded-3xl outline-none focus-visible:ring-4 focus-visible:ring-focus ${
+        inspecting ? "cursor-grab active:cursor-grabbing" : ""
+      }`}
     >
       {webgl ? (
         <Canvas
@@ -192,12 +213,47 @@ export function CubeView({
             arrowStyle={arrowStyle}
             bridgeRef={bridge}
             onReady={setReady}
+            inspecting={inspecting}
+            onViewHome={setViewHome}
           />
         </Canvas>
       ) : (
         <NoWebGL />
       )}
+      {webgl && ready && (
+        <InspectControls inspecting={inspecting} onToggle={() => setInspecting((v) => !v)} />
+      )}
     </div>
+  );
+}
+
+function InspectControls({ inspecting, onToggle }: { inspecting: boolean; onToggle: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <button
+        type="button"
+        aria-pressed={inspecting}
+        onClick={onToggle}
+        // Keep the press from starting a swipe on the cube underneath.
+        onPointerDown={(e) => e.stopPropagation()}
+        className={`absolute right-3 top-3 min-h-11 rounded-xl px-4 font-semibold ${
+          inspecting
+            ? "bg-accent text-on-accent"
+            : "border border-border bg-raised text-text hover:bg-border"
+        }`}
+      >
+        {t("cube.inspect")}
+      </button>
+      {inspecting && (
+        <p
+          aria-live="polite"
+          className="pointer-events-none absolute inset-x-3 bottom-3 rounded-xl bg-bg/85 px-3 py-2 text-center text-sm"
+        >
+          {t("cube.inspectHint")}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -218,7 +274,12 @@ interface SceneProps {
   arrowStyle: ArrowStyle;
   bridgeRef: RefObject<Bridge | null>;
   onReady: (ready: boolean) => void;
+  inspecting: boolean;
+  onViewHome: (home: boolean) => void;
 }
+
+/** Radians of view spin per pixel dragged in Inspect mode. */
+const INSPECT_SPEED = 0.01;
 
 interface Turn {
   move: Move;
@@ -246,6 +307,7 @@ function roundedSquare(size: number, radius: number): THREE.ShapeGeometry {
 }
 
 const Z = new THREE.Vector3(0, 0, 1);
+const HOME = new THREE.Quaternion();
 const AXES = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
 
 function CubeScene({
@@ -256,6 +318,8 @@ function CubeScene({
   arrowStyle,
   bridgeRef,
   onReady,
+  inspecting,
+  onViewHome,
 }: SceneProps) {
   const { camera, gl, invalidate } = useThree();
   const tokens = useThemeTokens();
@@ -312,6 +376,8 @@ function CubeScene({
   );
 
   const displayed = useRef<CubeState>(store.getState().state);
+  /** Holds the cube and its arrows, so Inspect mode can spin them together. */
+  const view = useRef<THREE.Group>(null);
   const turn = useRef<Turn | null>(null);
   // Anything already queued is already part of the starting state.
   useEffect(() => {
@@ -375,13 +441,28 @@ function CubeScene({
         const v = new THREE.Vector3(...point).project(camera);
         return { x: ((v.x + 1) / 2) * rect.width, y: ((1 - v.y) / 2) * rect.height };
       },
+      rotateView: (dx, dy) => {
+        const length = Math.hypot(dx, dy);
+        if (length === 0 || !view.current) return;
+        // Drag right spins the cube about the screen's up axis; drag down, about its right axis.
+        const axis = new THREE.Vector3(dy, dx, 0).normalize().applyQuaternion(camera.quaternion);
+        const spin = new THREE.Quaternion().setFromAxisAngle(axis, length * INSPECT_SPEED);
+        view.current.quaternion.premultiply(spin);
+        invalidate();
+      },
     };
     onReady(true);
     return () => {
       bridgeRef.current = null;
       onReady(false);
     };
-  }, [bridgeRef, camera, gl, cube, onReady]);
+  }, [bridgeRef, camera, gl, cube, onReady, invalidate]);
+
+  // Leaving Inspect mode: the frame loop glides the view back home.
+  useEffect(() => {
+    if (inspecting) onViewHome(false);
+    invalidate();
+  }, [inspecting, onViewHome, invalidate]);
 
   useEffect(() => {
     camera.lookAt(0, 0, 0);
@@ -389,6 +470,17 @@ function CubeScene({
   }, [camera, invalidate]);
 
   useFrame((_, delta) => {
+    const v = view.current;
+    if (v && !inspecting && 1 - Math.abs(v.quaternion.w) > 1e-7) {
+      const step = prefersReducedMotion() ? 1 : 1 - Math.exp(-Math.min(delta, 0.05) * 12);
+      v.quaternion.slerp(HOME, step);
+      if (1 - Math.abs(v.quaternion.w) < 1e-5) {
+        v.quaternion.identity();
+        onViewHome(true);
+      }
+      invalidate();
+    }
+
     let t = turn.current;
     if (!t) {
       const next = store.getState().takeNext();
@@ -447,10 +539,12 @@ function CubeScene({
       <ambientLight intensity={1.4} />
       <directionalLight position={[3, 6, 5]} intensity={1.6} />
       <directionalLight position={[-4, -2, -3]} intensity={0.5} />
-      <primitive object={cube.group} />
-      {arrow && (
-        <TurnArrow move={arrow} style={arrowStyle} color={tokens.accent} outline={tokens.bg} />
-      )}
+      <group ref={view}>
+        <primitive object={cube.group} />
+        {arrow && (
+          <TurnArrow move={arrow} style={arrowStyle} color={tokens.accent} outline={tokens.bg} />
+        )}
+      </group>
     </>
   );
 }
@@ -471,7 +565,14 @@ function TurnArrow({
     case "arc":
       return <ArcTurnArrow arc={placement} color={color} outline={outline} />;
     case "face":
-      return <FaceTurnArrow arrow={placement} color={color} outline={outline} />;
+      return (
+        <>
+          <FaceTurnArrow arrow={placement} color={color} outline={outline} />
+          {placement.alsoStrip && (
+            <StripTurnArrow placement={placement.alsoStrip} color={color} outline={outline} />
+          )}
+        </>
+      );
     case "strip":
       return <StripTurnArrow placement={placement} color={color} outline={outline} />;
   }
@@ -526,7 +627,7 @@ function FaceTurnArrow({
   color: string;
   outline: string;
 }) {
-  const { turn, double, hidden } = arrow;
+  const { turn, double } = arrow;
   const geometries = useMemo(
     () => ({
       fill: new THREE.ShapeGeometry(ringArrowShapes(turn, double, 0)),
@@ -545,15 +646,13 @@ function FaceTurnArrow({
     () => new THREE.Quaternion().setFromUnitVectors(Z, new THREE.Vector3(...arrow.normal)),
     [arrow.normal],
   );
-  // A circle for a face you can't see floats beside the cube and shows through it.
-  const material = { side: THREE.DoubleSide, depthTest: !hidden, transparent: hidden };
   return (
-    <group position={arrow.center} quaternion={quaternion} renderOrder={hidden ? 10 : 0}>
-      <mesh geometry={geometries.edge} renderOrder={hidden ? 10 : 0}>
-        <meshBasicMaterial color={outline} opacity={hidden ? 0.45 : 1} {...material} />
+    <group position={arrow.center} quaternion={quaternion}>
+      <mesh geometry={geometries.edge}>
+        <meshBasicMaterial color={outline} side={THREE.DoubleSide} />
       </mesh>
-      <mesh geometry={geometries.fill} position={[0, 0, 0.01]} renderOrder={hidden ? 11 : 0}>
-        <meshBasicMaterial color={color} opacity={hidden ? 0.6 : 1} {...material} />
+      <mesh geometry={geometries.fill} position={[0, 0, 0.01]}>
+        <meshBasicMaterial color={color} side={THREE.DoubleSide} />
       </mesh>
     </group>
   );

@@ -7,9 +7,11 @@
  *
  * With the "face" arrow style, outer face turns (U R F D L B) instead get
  * a circular arrow on the face that turns, going the way that face turns
- * as seen from outside it. Faces the viewer can't see (L, D, B) get the
- * circle floating just beyond the face, drawn see-through. Two-layer moves
- * and middle slices keep the straight arrow in both styles.
+ * as seen from outside it. The circle always lies flat on its face. Faces
+ * the viewer can't see from the normal view (L, D, B) also get the
+ * straight arrow, so there's always something to see; Inspect mode shows
+ * their circle. Two-layer moves and middle slices keep the straight arrow
+ * in both styles.
  *
  * Whole-cube rotations (x, y, z) get a big curved arrow that wraps around
  * the cube on the side facing the viewer, so it's clear everything turns.
@@ -66,9 +68,11 @@ export interface FaceArrow {
   normal: Vec3;
   /** 1: counterclockwise as seen from outside the face. -1: clockwise. */
   turn: 1 | -1;
-  /** The face points away from the viewer, so the circle floats beside the cube, see-through. */
+  /** The face can't be seen from the normal view. */
   hidden: boolean;
   double: boolean;
+  /** For hidden faces: a straight arrow to show as well, on a face you can see. */
+  alsoStrip: StripArrow | null;
 }
 
 export type ArrowPlacement = StripArrow | ArcArrow | FaceArrow;
@@ -111,7 +115,7 @@ export function arrowFor(
     // Turning counterclockwise about +axis is clockwise about a face that points the other way.
     const towardPlus = dot(faceNormal, axis) > 0;
     const hidden = dot(faceNormal, camera) < 0;
-    const lift = hidden ? 2.6 : 1.53;
+    const lift = 1.53;
     return {
       kind: "face",
       face,
@@ -121,9 +125,19 @@ export function arrowFor(
       turn: double ? -1 : towardPlus ? sign : sign === 1 ? -1 : 1,
       hidden,
       double,
+      alsoStrip: hidden ? stripArrow(turn, axis, sign, double) : null,
     };
   }
 
+  return stripArrow(turn, axis, sign, double);
+}
+
+function stripArrow(
+  turn: ReturnType<typeof moveTurn>,
+  axis: Vec3,
+  sign: 1 | -1,
+  double: boolean,
+): StripArrow {
   const normal: Vec3 = turn.axis === 2 ? [0, 1, 0] : [0, 0, 1];
   // A counterclockwise turn about +axis moves points on the face along axis x normal.
   const ccw = cross(axis, normal);
