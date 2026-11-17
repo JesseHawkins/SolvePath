@@ -6,6 +6,8 @@ async function openCube(page: Page) {
   await page.goto("cube");
   const cube = page.getByTestId("cube-view");
   await expect(cube.locator("canvas")).toBeVisible();
+  // The canvas shows up before the 3D scene is ready for swipes.
+  await expect(cube).toHaveAttribute("data-ready", "true");
   return {
     cube,
     errors,

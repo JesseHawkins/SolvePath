@@ -89,6 +89,8 @@ export function CubeView({
     null,
   );
   const [keyMoves, setKeyMoves] = useState<ReadonlyMap<string, Move> | null>(null);
+  // True once the 3D scene is up and swipes can find stickers.
+  const [ready, setReady] = useState(false);
   const facelets = useStore(store, (s) => faceletString(s.state));
 
   useEffect(() => {
@@ -145,6 +147,7 @@ export function CubeView({
       tabIndex={interactive ? 0 : -1}
       data-testid="cube-view"
       data-facelets={facelets}
+      data-ready={ready}
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -165,6 +168,7 @@ export function CubeView({
             highlightFace={highlightFace}
             arrow={arrow}
             bridgeRef={bridge}
+            onReady={setReady}
           />
         </Canvas>
       ) : (
@@ -189,6 +193,7 @@ interface SceneProps {
   highlightFace: Face | null;
   arrow: Move | null;
   bridgeRef: RefObject<Bridge | null>;
+  onReady: (ready: boolean) => void;
 }
 
 interface Turn {
@@ -219,7 +224,7 @@ function roundedSquare(size: number, radius: number): THREE.ShapeGeometry {
 const Z = new THREE.Vector3(0, 0, 1);
 const AXES = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
 
-function CubeScene({ store, profile, highlightFace, arrow, bridgeRef }: SceneProps) {
+function CubeScene({ store, profile, highlightFace, arrow, bridgeRef, onReady }: SceneProps) {
   const { camera, gl, invalidate } = useThree();
   const tokens = useThemeTokens();
 
@@ -338,10 +343,12 @@ function CubeScene({ store, profile, highlightFace, arrow, bridgeRef }: ScenePro
         return { x: ((v.x + 1) / 2) * rect.width, y: ((1 - v.y) / 2) * rect.height };
       },
     };
+    onReady(true);
     return () => {
       bridgeRef.current = null;
+      onReady(false);
     };
-  }, [bridgeRef, camera, gl, cube]);
+  }, [bridgeRef, camera, gl, cube, onReady]);
 
   useEffect(() => {
     camera.lookAt(0, 0, 0);
