@@ -95,6 +95,21 @@ describe("moves", () => {
     expect(order("M U")).toBe(order("M' U'"));
   });
 
+  it("show half turns going the same way as the single turn", () => {
+    for (const m of ALL_MOVES) {
+      const t = moveTurn(m);
+      expect(((t.signedQuarterTurns % 4) + 4) % 4, `${m.family}${m.amount}`).toBe(
+        t.quarterTurnsCcw,
+      );
+      if (m.amount === 2) {
+        const single = moveTurn({ family: m.family, amount: 1 });
+        expect(t.signedQuarterTurns).toBe(2 * single.signedQuarterTurns);
+      }
+    }
+    // R turns clockwise as seen from the right, which is clockwise about +x.
+    expect(moveTurn({ family: "R", amount: 2 }).signedQuarterTurns).toBe(-2);
+  });
+
   it("describe their 3D turn so it can be drawn and swiped", () => {
     for (const m of ALL_MOVES) {
       const t = moveTurn(m);

@@ -95,9 +95,10 @@ export function arrowFor(
 ): ArrowPlacement {
   const turn = moveTurn(move);
   const axis = unitVector(turn.axis);
-  // Counterclockwise about +axis is +1; clockwise is -1. Half turns use +1.
-  const sign = turn.quarterTurnsCcw === 3 ? -1 : 1;
-  const double = turn.quarterTurnsCcw === 2;
+  // Counterclockwise about +axis is +1; clockwise is -1. Half turns go the same
+  // way as their single turn (R2 like R), the same as the animation.
+  const sign = turn.signedQuarterTurns > 0 ? 1 : -1;
+  const double = Math.abs(turn.signedQuarterTurns) === 2;
 
   if (turn.kind === "rotation") {
     const u = unitVector(((turn.axis + 1) % 3) as 0 | 1 | 2);
@@ -121,8 +122,7 @@ export function arrowFor(
       face,
       center: clean([faceNormal[0] * lift, faceNormal[1] * lift, faceNormal[2] * lift]),
       normal: faceNormal,
-      // Half turns are shown clockwise, with two heads.
-      turn: double ? -1 : towardPlus ? sign : sign === 1 ? -1 : 1,
+      turn: towardPlus ? sign : sign === 1 ? -1 : 1,
       hidden,
       double,
       alsoStrip: hidden ? stripArrow(turn, axis, sign, double) : null,

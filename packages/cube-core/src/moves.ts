@@ -140,19 +140,35 @@ export function movesEqual(a: Move, b: Move): boolean {
 }
 
 /**
- * What a move does in 3D: the axis, the layers that turn, and how many
- * quarter turns counterclockwise about the +axis (1, 2, or 3).
- * The 3D renderer animates from this.
+ * What a move does in 3D: the axis, the layers that turn, and how far.
+ *
+ * `quarterTurnsCcw` is the end result: 1, 2, or 3 quarter turns
+ * counterclockwise about the +axis.
+ *
+ * `signedQuarterTurns` is the way to show the turn: positive is
+ * counterclockwise about +axis, negative is clockwise. A half turn goes the
+ * same way as its single turn (R2 turns like R, twice), so animations and
+ * arrows for half turns agree with each other. The 3D renderer and the
+ * arrows both use this.
  */
 export function moveTurn(move: Move): {
   axis: Axis;
   layers: readonly number[];
   quarterTurnsCcw: Amount;
+  signedQuarterTurns: -2 | -1 | 1 | 2;
   kind: MoveDefinition["kind"];
 } {
   const def = MOVE_DEFINITIONS[move.family];
   const quarterTurnsCcw = ((((def.direction * move.amount) % 4) + 4) % 4) as Amount;
-  return { axis: def.axis, layers: def.layers, quarterTurnsCcw, kind: def.kind };
+  const signedQuarterTurns = (move.amount === 3 ? -def.direction : def.direction * move.amount) as
+    -2 | -1 | 1 | 2;
+  return {
+    axis: def.axis,
+    layers: def.layers,
+    quarterTurnsCcw,
+    signedQuarterTurns,
+    kind: def.kind,
+  };
 }
 
 /**

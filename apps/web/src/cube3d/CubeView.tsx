@@ -493,14 +493,15 @@ function CubeScene({
       const info = moveTurn(next.move);
       const waiting = store.getState().queue.length;
       const speedUp = Math.min(4, 1 + waiting * 0.75);
-      const base = info.quarterTurnsCcw === 2 ? HALF_TURN_MS : QUARTER_TURN_MS;
+      const base = Math.abs(info.signedQuarterTurns) === 2 ? HALF_TURN_MS : QUARTER_TURN_MS;
       t = {
         move: next.move,
         axis: AXES[info.axis]!,
         members: [...cube.stickers, ...cube.bodies].filter((m) =>
           info.layers.includes((m.userData as { cubie: Vec3 }).cubie[info.axis]),
         ),
-        angle: (info.quarterTurnsCcw === 3 ? -1 : info.quarterTurnsCcw) * (Math.PI / 2),
+        // Half turns go the same way as their single turn (R2 like R), matching the arrows.
+        angle: info.signedQuarterTurns * (Math.PI / 2),
         elapsed: 0,
         duration: prefersReducedMotion() ? 0 : base / speedUp,
       };

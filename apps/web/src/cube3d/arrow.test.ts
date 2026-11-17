@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { parseAlg, type Vec3 } from "@solvepath/cube-core";
+import {
+  ALL_MOVES,
+  formatMove,
+  moveTurn,
+  parseAlg,
+  unitVector,
+  type Vec3,
+} from "@solvepath/cube-core";
 import {
   arcDirection,
   arcPoint,
@@ -120,13 +127,45 @@ describe("arrowFor, face arrows", () => {
     expect(face("B'").alsoStrip).toEqual(arrowFor(parseAlg("B'")[0]!, "section"));
   });
 
-  it("uses two heads for half turns", () => {
-    expect(face("U2").double).toBe(true);
+  it("uses two heads for half turns, going the same way as the single turn", () => {
+    for (const f of ["U", "R", "F", "D", "L", "B"]) {
+      expect(face(`${f}2`).double, f).toBe(true);
+      expect(face(`${f}2`).turn, `${f}2`).toBe(CLOCKWISE);
+    }
   });
 
   it("keeps straight arrows for two-layer moves and middle slices, curved ones for the whole cube", () => {
     expect(arrowFor(parseAlg("r")[0]!, "face")).toMatchObject({ kind: "strip", layers: 2 });
     expect(arrowFor(parseAlg("M")[0]!, "face").kind).toBe("strip");
     expect(arrowFor(parseAlg("x")[0]!, "face").kind).toBe("arc");
+  });
+});
+
+describe("arrows and animation agree", () => {
+  // The 3D view turns each move by moveTurn(move).signedQuarterTurns about +axis.
+  // Every arrow, in both styles, must point the same way, for every move.
+  it("for every move and both arrow styles", () => {
+    for (const move of ALL_MOVES) {
+      const turn = moveTurn(move);
+      const animSign = Math.sign(turn.signedQuarterTurns);
+      const axis = unitVector(turn.axis);
+      for (const style of ["section", "face"] as const) {
+        const a = arrowFor(move, style);
+        const name = `${formatMove(move)} (${style})`;
+        const strips =
+          a.kind === "strip" ? [a] : a.kind === "face" && a.alsoStrip ? [a.alsoStrip] : [];
+        for (const strip of strips) {
+          // A turn of +1 about +axis moves points on the face along axis x normal.
+          const motion = cross(axis, strip.normal).map((n) => n * animSign);
+          expect(strip.direction, name).toEqual(motion.map((n) => n + 0));
+        }
+        if (a.kind === "face") {
+          expect(a.turn, name).toBe(animSign * dot(a.normal, axis));
+        }
+        if (a.kind === "arc") {
+          expect(Math.sign(a.to - a.from), name).toBe(animSign);
+        }
+      }
+    }
   });
 });
