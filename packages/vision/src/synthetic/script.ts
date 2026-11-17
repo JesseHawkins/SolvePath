@@ -17,6 +17,8 @@ export interface ScriptFrame {
   phase: ScanPhase;
   /** Which hold this frame is part of (0-3 sides, 4 top, 5 bottom), or -1 while moving. */
   hold: number;
+  /** How far the current spin or tip has gone, in degrees (0 while holding). */
+  turned: number;
 }
 
 export interface ScanScript {
@@ -67,7 +69,7 @@ export function gripAndSpin(state: CubeState, options: ScriptOptions = {}): Scan
   let shown = state;
   let grip: M3 = IDENTITY;
   let t = 0;
-  const push = (pose: M3, phase: ScanPhase, hold: number) => {
+  const push = (pose: M3, phase: ScanPhase, hold: number, turned = 0) => {
     const time = t / fps;
     const w = mul(
       rotation([0, 1, 0], wobble * Math.sin(time * 1.7 + phases[0]!)),
@@ -87,9 +89,11 @@ export function gripAndSpin(state: CubeState, options: ScriptOptions = {}): Scan
         grip,
         offset: drift,
         seed: seed * 1000 + t,
+        backgroundSeed: seed,
       },
       phase,
       hold,
+      turned,
     });
     t++;
   };
@@ -101,7 +105,7 @@ export function gripAndSpin(state: CubeState, options: ScriptOptions = {}): Scan
     for (let i = 1; i <= frames; i++) {
       const p = i / (frames + 1);
       const eased = p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2;
-      push(rotation(axis, angle * eased), phase, -1);
+      push(rotation(axis, angle * eased), phase, -1, Math.abs((angle * eased * 180) / Math.PI));
     }
     shown = applyMove(shown, MOVE[name]!);
     // Tipping carries the fingers along; spinning turns the cube under them.

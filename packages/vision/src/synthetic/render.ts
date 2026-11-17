@@ -67,8 +67,10 @@ export interface SceneSpec {
   grip: M3;
   /** Some webcam tools flip the picture left to right. */
   flipped: boolean;
-  /** Changes the noise and background. Same seed, same picture. */
+  /** Changes the camera noise. Same seed, same picture. */
   seed: number;
+  /** Changes the room behind the cube. */
+  backgroundSeed: number;
 }
 
 export const DEFAULT_SCENE: Omit<SceneSpec, "state"> = {
@@ -85,6 +87,7 @@ export const DEFAULT_SCENE: Omit<SceneSpec, "state"> = {
   grip: [1, 0, 0, 0, 1, 0, 0, 0, 1],
   flipped: false,
   seed: 1,
+  backgroundSeed: 1,
 };
 
 interface Quad {
@@ -199,6 +202,39 @@ function shade(spec: SceneSpec, q: Quad, rand: () => number): Rgb {
   return q.color.map((c, i) => c * light * tint[i]! * wobble) as Rgb;
 }
 
+const backgrounds = new Map<string, Float32Array>();
+
+/** A soft gradient with a few blurry shapes (a room behind the user). Made once per seed and reused. */
+function background(W: number, H: number, seed: number, light: number): Float32Array {
+  const key = `${W}x${H}:${seed}:${light}`;
+  const cached = backgrounds.get(key);
+  if (cached) return cached;
+  const rand = random(seed * 7 + 3);
+  const blobs = Array.from({ length: 5 }, () => ({
+    x: rand() * W,
+    y: rand() * H,
+    r: (0.15 + rand() * 0.3) * W,
+    c: [60 + rand() * 120, 60 + rand() * 110, 60 + rand() * 100],
+  }));
+  const out = new Float32Array(W * H * 3);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      let c = [120 - (y / H) * 40, 115 - (y / H) * 35, 110 - (y / H) * 30];
+      for (const b of blobs) {
+        const k = Math.exp(-((x - b.x) ** 2 + (y - b.y) ** 2) / (b.r * b.r));
+        c = c.map((v, i) => v * (1 - k * 0.7) + b.c[i]! * k * 0.7);
+      }
+      const i = (y * W + x) * 3;
+      out[i] = c[0]! * light;
+      out[i + 1] = c[1]! * light;
+      out[i + 2] = c[2]! * light;
+    }
+  }
+  if (backgrounds.size > 8) backgrounds.clear();
+  backgrounds.set(key, out);
+  return out;
+}
+
 /** Draws a scene. Returns an RGBA image the size of `spec`. */
 export function renderScene(spec: SceneSpec): RgbaImage {
   const rand = random(spec.seed);
@@ -208,28 +244,7 @@ export function renderScene(spec: SceneSpec): RgbaImage {
   const color = new Float32Array(W * H * 3);
   const depth = new Float32Array(W * H).fill(Infinity);
 
-  // Background: a soft gradient with a few blurry shapes (a room behind the user).
-  const bgRand = random(spec.seed * 7 + 3);
-  const blobs = Array.from({ length: 5 }, () => ({
-    x: bgRand() * W,
-    y: bgRand() * H,
-    r: (0.15 + bgRand() * 0.3) * W,
-    c: [60 + bgRand() * 120, 60 + bgRand() * 110, 60 + bgRand() * 100],
-  }));
-  const dimBg = spec.lighting === "dim" ? 0.45 : 1;
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      let c = [120 - (y / H) * 40, 115 - (y / H) * 35, 110 - (y / H) * 30];
-      for (const b of blobs) {
-        const k = Math.exp(-((x - b.x) ** 2 + (y - b.y) ** 2) / (b.r * b.r));
-        c = c.map((v, i) => v * (1 - k * 0.7) + b.c[i]! * k * 0.7);
-      }
-      const i = (y * W + x) * 3;
-      color[i] = c[0]! * dimBg;
-      color[i + 1] = c[1]! * dimBg;
-      color[i + 2] = c[2]! * dimBg;
-    }
-  }
+  color.set(background(W, H, spec.backgroundSeed, spec.lighting === "dim" ? 0.45 : 1));
 
   const camera: V3 = [0, 0, -spec.distance];
   const project = (p: V3) => {

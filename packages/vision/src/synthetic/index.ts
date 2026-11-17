@@ -4,3 +4,4 @@
 export * from "./render";
 export * from "./script";
 export * from "./math3";
+export * from "./run";

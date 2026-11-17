@@ -19,8 +19,13 @@ export interface GridPose {
   /** Center of the face, in pixels. */
   cx: number;
   cy: number;
-  /** Width of the face (edge to edge), in pixels. */
+  /** Height of the face (edge to edge), in pixels. */
   size: number;
+  /**
+   * Width divided by height. Near 1 for a face held straight at the camera;
+   * smaller while the cube is turned partway (the face looks narrow).
+   */
+  aspect: number;
   /** Tilt in radians, clockwise on screen. */
   angle: number;
 }
@@ -47,8 +52,8 @@ export function facePoint(pose: GridPose, u: number, v: number): { x: number; y:
   const c = Math.cos(pose.angle);
   const s = Math.sin(pose.angle);
   return {
-    x: pose.cx + pose.size * (u * c - v * s),
-    y: pose.cy + pose.size * (u * s + v * c),
+    x: pose.cx + pose.size * (u * pose.aspect * c - v * s),
+    y: pose.cy + pose.size * (u * pose.aspect * s + v * c),
   };
 }
 
@@ -76,6 +81,10 @@ const ALONG = [-0.08, 0, 0.08];
 const OUTSIDE = [0.05, 0.09];
 
 const SEAM_WEIGHT = 0.6;
+/** How many starting spots get fully nudged into place. */
+const REFINE_STARTS = 3;
+/** A face counts as held straight at the camera if its width is within this much of its height. */
+export const SQUARE_TOLERANCE = 0.1;
 const SPREAD_WEIGHT = 2;
 
 function readLab(image: LabImage, x: number, y: number, out: Lab): boolean {
@@ -95,8 +104,9 @@ const tmp: Lab = [0, 0, 0];
 export function scorePose(image: LabImage, pose: GridPose): GridFit | null {
   const c = Math.cos(pose.angle) * pose.size;
   const s = Math.sin(pose.angle) * pose.size;
+  const w = pose.aspect;
   const at = (u: number, v: number, out: Lab) =>
-    readLab(image, pose.cx + u * c - v * s, pose.cy + u * s + v * c, out);
+    readLab(image, pose.cx + u * w * c - v * s, pose.cy + u * w * s + v * c, out);
 
   const cells: Lab[] = [];
   const spread: number[] = [];
@@ -260,7 +270,13 @@ function combSeeds(image: LabImage, box: Box, count: number): GridPose[] {
     found.push({
       // Normalize by size, so a big comb doesn't win just by crossing more rows.
       score: (bestX.score + bestY.score) / Math.sqrt(size),
-      pose: { cx: ox + bestX.at + size / 2, cy: oy + bestY.at + size / 2, size, angle: 0 },
+      pose: {
+        cx: ox + bestX.at + size / 2,
+        cy: oy + bestY.at + size / 2,
+        size,
+        angle: 0,
+        aspect: 1,
+      },
     });
   }
   found.sort((p, q) => q.score - p.score);
@@ -273,14 +289,19 @@ export function fitGrid(image: LabImage, options: FitOptions): GridFit | null {
   const span = Math.min(box.width, box.height);
   const seeds = combSeeds(image, box, 6);
   if (options.previous) seeds.push(options.previous);
-  let best: GridFit | null = null;
+  const starts: GridFit[] = [];
   for (const pose of seeds) {
     for (const angle of [-0.12, 0, 0.12]) {
       const start = scorePose(image, { ...pose, angle: pose.angle + angle });
-      if (!start) continue;
-      const fit = refine(image, start, span * 0.5);
-      if (!best || fit.score > best.score) best = fit;
+      if (start) starts.push(start);
     }
+  }
+  // Only the most promising starts get the careful (slower) nudging.
+  starts.sort((p, q) => q.score - p.score);
+  let best: GridFit | null = null;
+  for (const start of starts.slice(0, REFINE_STARTS)) {
+    const fit = refine(image, start, span * 0.5);
+    if (!best || fit.score > best.score) best = fit;
   }
   return best;
 }
@@ -288,7 +309,7 @@ export function fitGrid(image: LabImage, options: FitOptions): GridFit | null {
 /** Nudges a pose to a nearby better one (pattern search with shrinking steps). */
 export function refine(image: LabImage, start: GridFit, span: number): GridFit {
   let best = start;
-  let step = { xy: span * 0.03, size: span * 0.03, angle: 0.04 };
+  let step = { xy: span * 0.03, size: span * 0.03, angle: 0.04, aspect: 0.05 };
   for (let round = 0; round < 6; round++) {
     let improved = true;
     let guard = 0;
@@ -304,6 +325,8 @@ export function refine(image: LabImage, start: GridFit, span: number): GridFit {
         { ...p, size: p.size - step.size },
         { ...p, angle: p.angle + step.angle },
         { ...p, angle: p.angle - step.angle },
+        { ...p, aspect: p.aspect + step.aspect },
+        { ...p, aspect: p.aspect - step.aspect },
       ];
       for (const pose of moves) {
         const fit = scorePose(image, pose);
@@ -313,7 +336,7 @@ export function refine(image: LabImage, start: GridFit, span: number): GridFit {
         }
       }
     }
-    step = { xy: step.xy / 2, size: step.size / 2, angle: step.angle / 2 };
+    step = { xy: step.xy / 2, size: step.size / 2, angle: step.angle / 2, aspect: step.aspect / 2 };
   }
   return best;
 }

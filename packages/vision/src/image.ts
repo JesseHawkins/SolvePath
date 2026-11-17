@@ -24,18 +24,33 @@ export interface LabImage {
   readonly b: Float32Array;
 }
 
-export function toLab(image: RgbaImage): LabImage {
+/**
+ * Converts an image to OKLab. With `region`, only pixels inside it are
+ * converted (the rest stay black), which saves time when we only look near
+ * the guide box.
+ */
+export function toLab(
+  image: RgbaImage,
+  region?: { x: number; y: number; width: number; height: number },
+): LabImage {
   const n = image.width * image.height;
   const L = new Float32Array(n);
   const a = new Float32Array(n);
   const b = new Float32Array(n);
   const d = image.data;
   const out: Lab = [0, 0, 0];
-  for (let i = 0; i < n; i++) {
-    srgbToOklab(d[i * 4]!, d[i * 4 + 1]!, d[i * 4 + 2]!, out);
-    L[i] = out[0];
-    a[i] = out[1];
-    b[i] = out[2];
+  const x0 = region ? Math.max(0, Math.floor(region.x)) : 0;
+  const y0 = region ? Math.max(0, Math.floor(region.y)) : 0;
+  const x1 = region ? Math.min(image.width, Math.ceil(region.x + region.width)) : image.width;
+  const y1 = region ? Math.min(image.height, Math.ceil(region.y + region.height)) : image.height;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const i = y * image.width + x;
+      srgbToOklab(d[i * 4]!, d[i * 4 + 1]!, d[i * 4 + 2]!, out);
+      L[i] = out[0];
+      a[i] = out[1];
+      b[i] = out[2];
+    }
   }
   return { width: image.width, height: image.height, L, a, b };
 }
