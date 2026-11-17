@@ -92,6 +92,8 @@ A candid log, updated at the end of every milestone. It's the raw material for t
 - **eslint-plugin-jsx-a11y doesn't treat `role="application"` as interactive,** even though that's the ARIA role for a custom widget that handles its own keys. Two rules are turned off on that one element, with a comment saying why.
 - **The Guide anchor checker only allows lowercase** (`feature.virtual-cube`, not `feature.virtualCube`). The check caught it.
 
+- **A swipe test failed once in CI, on mobile only, and never locally.** The canvas shows up before the 3D scene is ready to find stickers under a finger, so a very early swipe was ignored. Fix: the cube sets `data-ready` once swipes work, and tests wait for it. Lesson: "the element is visible" is not "the element is ready". Give anything that starts up in steps its own ready signal.
+
 **Do differently next time**
 
 - Write the screenshot script at the start of any visual work, not at the end.
