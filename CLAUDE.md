@@ -6,7 +6,7 @@ Working notes for anyone (human or AI) building SolvePath. Keep this file curren
 
 **M1 (Cube core + 3D cube): complete, waiting for owner review.** Next: M2 (vision spike). Do not start M2 until the owner confirms.
 
-Milestone plan: `docs/PLAN.md` Section 12. Changelogs: `docs/milestones/`. Lessons: `docs/LESSONS.md`.
+Milestone plan: `docs/PLAN.md` Section 12. **Queued owner requests: `docs/PLAN.md` 12.3. Check it at the start of every build.** Changelogs: `docs/milestones/`. Lessons: `docs/LESSONS.md`.
 
 ## Ground rules (from SOLVEPATH_SPEC.md Section 0)
 

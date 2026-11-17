@@ -649,6 +649,14 @@ Effort is a rough guess in focused working days (one developer with Claude Code)
 
 Tests pass, build works, `docs/milestones/MXX.md` changelog, `docs/LESSONS.md` updated, CLAUDE.md current milestone updated, Guide entries for anything user-facing added that milestone, one git commit, then stop for your confirmation.
 
+### 12.3 Owner requests queued for later
+
+Small requests from the owner that wait for a later build. Do each one in the build named, then move it to that milestone's changelog.
+
+| Asked      | Request                                                                                                                                                                                                                                                                                                       | Do in                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| 2026-11-16 | **Stronger highlight on the virtual cube.** When a face or section is highlighted (One at a time, and later the solving guide), add a glow or similar callout so it's even more obvious what will move. Today the rest of the cube just dims. Must work in every theme and with reduced motion (no flashing). | Next build (start of M2) |
+
 ---
 
 ## 13. Decisions and remaining questions
