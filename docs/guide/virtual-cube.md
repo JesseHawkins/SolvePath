@@ -14,7 +14,15 @@ The box next to the cube tells you when it's solved. Turning the whole cube does
 
 ## Turning the cube {#cube.controls}
 
-**Swipe** a row or column of stickers to turn it that way. Swipe the middle row to turn the middle slice. Swipe on the empty space beside the cube to turn the whole cube.
+**Swipe** a row or column of stickers to turn it that way. Swipe the middle row to turn the middle slice.
+
+**Turn the whole cube** by swiping in the empty space around it. With a mouse, you can also drag anywhere with the right button, or hold **Shift** and drag. Swipe sideways to turn it like y, or up and down to turn it like x. For z, use the buttons or the keys.
+
+**Turn buttons** come in three groups:
+
+- **Turn one layer:** the six faces and the three middle layers (M, E, S).
+- **Turn two layers:** a face and the middle layer next to it, written with a small letter. For example, r is R and M' together.
+- **Turn the whole cube:** x, y, and z. These have an outline so they stand out, because no pieces move.
 
 **Keyboard:** click or tap the cube first, then press these keys. They're the same keys many speedcubing sites use, so your fingers may already know them.
 
@@ -40,4 +48,8 @@ The box next to the cube tells you when it's solved. Turning the whole cube does
 
 Type some moves in the box, like `R U R' U'`, then press **Do them**. To learn what the letters mean, see [Moves and notation](#glossary.notation).
 
-Press **One at a time** to go slowly. An arrow shows which way the next move turns, and the part of the cube that turns stays bright while the rest goes dim. Press **Next move** to do it.
+Press **One at a time** to go slowly. An arrow shows which way the next move turns. Press **Next move** to do it.
+
+- When part of the cube turns, a straight arrow lies on the part that moves. That part stays bright while the rest goes dim. Two-layer moves get a wider arrow.
+- When the whole cube turns, a big curved arrow wraps around the cube.
+- Half turns (like R2) have two arrowheads.

@@ -58,7 +58,7 @@ export const en = {
     intro:
       "A cube you can turn on the screen. Try moves, or practice before you use your real cube.",
     label: "Virtual cube",
-    help: "Swipe a row of stickers to turn it. Swipe beside the cube to turn the whole cube. With a keyboard, click the cube first, then use the keys listed in the Guide.",
+    help: "Swipe a row of stickers to turn it. To turn the whole cube, swipe in the space around it, or drag anywhere with the right mouse button (or hold Shift). With a keyboard, click the cube first, then use the keys listed in the Guide.",
     noWebgl:
       "This browser can't draw 3D right now. Try turning on hardware acceleration, or use a different browser.",
     solved: "Solved!",
@@ -70,7 +70,20 @@ export const en = {
     scrambledWith: "Scrambled with",
     undo: "Undo",
     reset: "Reset",
-    buttonsLabel: "Turn buttons",
+    buttons: {
+      layer: {
+        title: "Turn one layer",
+        help: "Each row holds layers that turn around the same line through the cube: U and D with the middle E, R and L with the middle M, F and B with the middle S.",
+      },
+      wide: {
+        title: "Turn two layers",
+        help: "A small letter turns a face and the middle layer next to it. r is R and M' together.",
+      },
+      rotation: {
+        title: "Turn the whole cube",
+        help: "Turns the cube in your hands. No pieces move, so it stays solved if it was solved.",
+      },
+    },
     turn: "Turn {{move}}",
     history: "Your moves",
     noMoves: "No moves yet.",

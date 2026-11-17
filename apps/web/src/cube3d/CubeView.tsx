@@ -26,18 +26,23 @@ import {
   stickerIndexAt,
   type CubeProfile,
   type CubeState,
-  type Face,
   type Move,
   type Vec3,
 } from "@solvepath/cube-core";
 import { useThemeTokens } from "../theme/useThemeTokens";
-import { arrowFor } from "./arrow";
+import { arcDirection, arcPoint, arrowFor, CAMERA_POSITION, type ArcArrow } from "./arrow";
 import { loadKeyMoves } from "./keys";
 import type { CubeStore } from "./store";
 import { moveForSwipe } from "./swipe";
 
-const QUARTER_TURN_MS = 150;
-const HALF_TURN_MS = 230;
+const QUARTER_TURN_MS = 280;
+const HALF_TURN_MS = 420;
+/**
+ * The canvas only draws when something changes, so the first frame of a
+ * turn can come after a long idle gap. Capping each frame's time step keeps
+ * that gap from finishing the turn in one frame.
+ */
+const MAX_FRAME_MS = 50;
 const SWIPE_PX = 14;
 const DIM = 0.4;
 
@@ -48,8 +53,11 @@ export interface CubeViewProps {
   /** Id of an element that explains how to use the cube. */
   describedBy?: string;
   profile?: CubeProfile;
-  /** Makes one face (and the layer behind it) stand out by dimming the rest. */
-  highlightFace?: Face | null;
+  /**
+   * Makes the layers this move turns stand out by dimming the rest. A face
+   * move highlights that face; whole-cube rotations dim nothing.
+   */
+  highlightMove?: Move | null;
   /** Shows an arrow for this move. */
   arrow?: Move | null;
   /** Lets the user turn the cube by swiping or with the keyboard. */
@@ -79,7 +87,7 @@ export function CubeView({
   label,
   describedBy,
   profile = DEFAULT_PROFILE,
-  highlightFace = null,
+  highlightMove = null,
   arrow = null,
   interactive = false,
 }: CubeViewProps) {
@@ -113,11 +121,13 @@ export function CubeView({
   const onPointerDown = (e: React.PointerEvent) => {
     if (!interactive || !bridge.current || !e.isPrimary) return;
     e.currentTarget.setPointerCapture(e.pointerId);
+    // Right-drag or Shift-drag turns the whole cube, wherever it starts.
+    const wholeCube = e.button === 2 || e.shiftKey;
     swipe.current = {
       id: e.pointerId,
       x: e.clientX,
       y: e.clientY,
-      sticker: bridge.current.pick(e.clientX, e.clientY),
+      sticker: wholeCube ? null : bridge.current.pick(e.clientX, e.clientY),
       done: false,
     };
   };
@@ -153,19 +163,20 @@ export function CubeView({
       onPointerMove={onPointerMove}
       onPointerUp={endSwipe}
       onPointerCancel={endSwipe}
+      onContextMenu={(e) => interactive && e.preventDefault()}
       className="aspect-square w-full touch-none select-none rounded-3xl outline-none focus-visible:ring-4 focus-visible:ring-focus"
     >
       {webgl ? (
         <Canvas
           frameloop="demand"
           dpr={[1, 2]}
-          camera={{ position: [4.1, 5.0, 7.4], fov: 32 }}
+          camera={{ position: [...CAMERA_POSITION], fov: 32 }}
           gl={{ antialias: true, powerPreference: "high-performance" }}
         >
           <CubeScene
             store={store}
             profile={profile}
-            highlightFace={highlightFace}
+            highlightMove={highlightMove}
             arrow={arrow}
             bridgeRef={bridge}
             onReady={setReady}
@@ -190,7 +201,7 @@ function NoWebGL() {
 interface SceneProps {
   store: CubeStore;
   profile: CubeProfile;
-  highlightFace: Face | null;
+  highlightMove: Move | null;
   arrow: Move | null;
   bridgeRef: RefObject<Bridge | null>;
   onReady: (ready: boolean) => void;
@@ -224,7 +235,7 @@ function roundedSquare(size: number, radius: number): THREE.ShapeGeometry {
 const Z = new THREE.Vector3(0, 0, 1);
 const AXES = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
 
-function CubeScene({ store, profile, highlightFace, arrow, bridgeRef, onReady }: SceneProps) {
+function CubeScene({ store, profile, highlightMove, arrow, bridgeRef, onReady }: SceneProps) {
   const { camera, gl, invalidate } = useThree();
   const tokens = useThemeTokens();
 
@@ -287,10 +298,11 @@ function CubeScene({ store, profile, highlightFace, arrow, bridgeRef, onReady }:
   }, [store]);
 
   const highlighted = useMemo(() => {
-    if (!highlightFace) return null;
-    const t = moveTurn({ family: highlightFace, amount: 1 });
+    if (!highlightMove) return null;
+    const t = moveTurn(highlightMove);
+    if (t.kind === "rotation") return null;
     return (cubie: Vec3) => t.layers.includes(cubie[t.axis]);
-  }, [highlightFace]);
+  }, [highlightMove]);
 
   const recolor = useMemo(
     () => () => {
@@ -380,12 +392,15 @@ function CubeScene({ store, profile, highlightFace, arrow, bridgeRef, onReady }:
         duration: prefersReducedMotion() ? 0 : base / speedUp,
       };
       turn.current = t;
+    } else {
+      // A new turn starts from 0 on its first frame; only later frames add time.
+      t.elapsed += Math.min(delta * 1000, MAX_FRAME_MS);
     }
 
-    t.elapsed += delta * 1000;
     const progress = t.duration === 0 ? 1 : Math.min(1, t.elapsed / t.duration);
     if (progress < 1) {
-      const eased = 1 - (1 - progress) ** 3;
+      // Ease in and out, so the start of the turn is easy to see.
+      const eased = progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
       const q = new THREE.Quaternion().setFromAxisAngle(t.axis, t.angle * eased);
       for (const m of t.members) {
         const { home, homeQ } = m.userData as { home: THREE.Vector3; homeQ: THREE.Quaternion };
@@ -418,10 +433,28 @@ function CubeScene({ store, profile, highlightFace, arrow, bridgeRef, onReady }:
 }
 
 function TurnArrow({ move, color, outline }: { move: Move; color: string; outline: string }) {
-  const placement = arrowFor(move);
+  const placement = useMemo(() => arrowFor(move), [move]);
+  return placement.kind === "arc" ? (
+    <ArcTurnArrow arc={placement} color={color} outline={outline} />
+  ) : (
+    <StripTurnArrow placement={placement} color={color} outline={outline} />
+  );
+}
+
+/** A flat arrow lying on the strip of stickers that moves. */
+function StripTurnArrow({
+  placement,
+  color,
+  outline,
+}: {
+  placement: Extract<ReturnType<typeof arrowFor>, { kind: "strip" }>;
+  color: string;
+  outline: string;
+}) {
+  const { layers, double } = placement;
   const shapes = useMemo(() => {
-    const width = placement.wide ? 0.5 : 0.2;
-    const head = placement.wide ? 0.62 : 0.4;
+    const width = layers === 2 ? 0.5 : 0.2;
+    const head = layers === 2 ? 0.62 : 0.4;
     const make = (grow: number) => {
       const s = new THREE.Shape();
       const w = width / 2 + grow;
@@ -433,7 +466,7 @@ function TurnArrow({ move, color, outline }: { move: Move; color: string; outlin
       s.lineTo(0.55, w);
       s.lineTo(-1.05 - grow, w);
       s.closePath();
-      if (placement.double) {
+      if (double) {
         const s2 = new THREE.Shape();
         s2.moveTo(0, -head - grow);
         s2.lineTo(0.65 + grow * 1.6, 0);
@@ -444,7 +477,7 @@ function TurnArrow({ move, color, outline }: { move: Move; color: string; outlin
       return new THREE.ShapeGeometry(s);
     };
     return { fill: make(0), edge: make(0.06) };
-  }, [placement.wide, placement.double]);
+  }, [layers, double]);
   useEffect(
     () => () => {
       shapes.fill.dispose();
@@ -468,6 +501,73 @@ function TurnArrow({ move, color, outline }: { move: Move; color: string; outlin
       <mesh geometry={shapes.fill} position={[0, 0, 0.01]}>
         <meshBasicMaterial color={color} />
       </mesh>
+    </group>
+  );
+}
+
+const ARC_TUBE = 0.1;
+const ARC_HEAD_LENGTH = 0.6;
+const ARC_HEAD_RADIUS = 0.28;
+const ARC_OUTLINE = 0.035;
+const UP = new THREE.Vector3(0, 1, 0);
+
+/** A big curved arrow around the cube, for turning the whole cube. */
+function ArcTurnArrow({ arc, color, outline }: { arc: ArcArrow; color: string; outline: string }) {
+  const parts = useMemo(() => {
+    const sign = arc.to > arc.from ? 1 : -1;
+    const headAngle = ARC_HEAD_LENGTH / arc.radius;
+    // The tube stops where the (last) head starts.
+    const heads = arc.double ? [arc.to, arc.to - sign * headAngle * 0.9] : [arc.to];
+    const tubeEnd = heads.at(-1)! - sign * headAngle * 0.5;
+    const points: THREE.Vector3[] = [];
+    const steps = 40;
+    for (let i = 0; i <= steps; i++) {
+      const angle = arc.from + ((tubeEnd - arc.from) * i) / steps;
+      points.push(new THREE.Vector3(...arcPoint(arc, angle)));
+    }
+    const curve = new THREE.CatmullRomCurve3(points);
+    const geometries = [
+      new THREE.TubeGeometry(curve, 64, ARC_TUBE, 10),
+      new THREE.TubeGeometry(curve, 64, ARC_TUBE + ARC_OUTLINE, 10),
+      new THREE.ConeGeometry(ARC_HEAD_RADIUS, ARC_HEAD_LENGTH, 20),
+      new THREE.ConeGeometry(
+        ARC_HEAD_RADIUS + ARC_OUTLINE * 1.6,
+        ARC_HEAD_LENGTH + ARC_OUTLINE * 3,
+        20,
+      ),
+    ] as const;
+    const cones = heads.map((tip) => {
+      // A cone's tip points along +y and its middle is at the origin.
+      const middleAngle = tip - sign * headAngle * 0.5;
+      const direction = new THREE.Vector3(...arcDirection(arc, middleAngle));
+      return {
+        position: new THREE.Vector3(...arcPoint(arc, middleAngle)),
+        quaternion: new THREE.Quaternion().setFromUnitVectors(UP, direction),
+      };
+    });
+    return { geometries, cones };
+  }, [arc]);
+  useEffect(() => () => parts.geometries.forEach((g) => g.dispose()), [parts]);
+
+  const [tube, tubeEdge, cone, coneEdge] = parts.geometries;
+  return (
+    <group>
+      <mesh geometry={tubeEdge}>
+        <meshBasicMaterial color={outline} side={THREE.BackSide} />
+      </mesh>
+      <mesh geometry={tube}>
+        <meshBasicMaterial color={color} />
+      </mesh>
+      {parts.cones.map((c, i) => (
+        <group key={i} position={c.position} quaternion={c.quaternion}>
+          <mesh geometry={coneEdge}>
+            <meshBasicMaterial color={outline} side={THREE.BackSide} />
+          </mesh>
+          <mesh geometry={cone}>
+            <meshBasicMaterial color={color} />
+          </mesh>
+        </group>
+      ))}
     </group>
   );
 }

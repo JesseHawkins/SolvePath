@@ -94,6 +94,14 @@ A candid log, updated at the end of every milestone. It's the raw material for t
 
 - **A swipe test failed once in CI, on mobile only, and never locally.** The canvas shows up before the 3D scene is ready to find stickers under a finger, so a very early swipe was ignored. Fix: the cube sets `data-ready` once swipes work, and tests wait for it. Lesson: "the element is visible" is not "the element is ready". Give anything that starts up in steps its own ready signal.
 
+**Found by the owner after M1 shipped**
+
+- **Turns looked instant.** The canvas only draws when something changes (to save battery). Each frame's time step is "time since the last frame", so the first frame of a turn after the cube sat still counted the whole idle gap, often seconds, and finished the turn at once. Turns only showed when moves came back to back. Our screenshot check couldn't catch it: the screenshot itself took longer than the turn. Fix: a new turn starts at zero on its first frame, and each frame's step is capped at 50 ms. Checked with a recorded video, cut into a contact sheet with ffmpeg, which showed the layer partway through the turn. Lesson: with on-demand drawing, never trust the first frame's time step. To check an animation, record video; screenshots are too slow.
+- **No way to find whole-cube turns with a mouse.** "Swipe in the empty space" worked, but there wasn't much empty space and nothing hinted at it. Added room around the cube, right-drag and Shift-drag anywhere, and clearer help text.
+- **x' and z' buttons were missing,** and two-layer moves (r, Rw) had no buttons at all. A plain list of buttons typed by hand is easy to get wrong; the buttons now come in three labeled groups (one layer, two layers, whole cube), and a browser test clicks every whole-cube button.
+- **Whole-cube turns need a different arrow.** The owner suggested a curved arrow that wraps around the cube, longer than a face. It's in, and a unit test checks that the arc heads the way the cube turns at every point along it.
+- **The highlight for r lit only the R layer.** The highlight now follows the move's layers, not its face letter.
+
 **Do differently next time**
 
 - Write the screenshot script at the start of any visual work, not at the end.

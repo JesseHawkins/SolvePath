@@ -5,32 +5,34 @@ import {
   applyMoves,
   formatAlg,
   formatMove,
-  MOVE_DEFINITIONS,
   parseAlg,
   solvedState,
-  type Face,
   type Move,
 } from "@solvepath/cube-core";
 import { CubeView } from "../cube3d/CubeView";
 import { createCubeStore } from "../cube3d/store";
 import { GuideLink } from "../guide/GuideLink";
 
-const BUTTON_MOVES = parseAlg("U U' R R' F F' D D' L L' B B' M M' x y z y'");
+/** Turn buttons in three groups. Each row of one-layer moves shares an axis. */
+const BUTTON_GROUPS = [
+  { id: "layer", moves: parseAlg("U U' D D' E E' R R' L L' M M' F F' B B' S S'") },
+  { id: "wide", moves: parseAlg("u u' d d' r r' l l' f f' b b'") },
+  { id: "rotation", moves: parseAlg("x x' y y' z z'") },
+] as const;
 const HISTORY_SHOWN = 40;
 
 const button =
   "min-h-11 rounded-xl bg-raised px-4 font-semibold hover:bg-border disabled:opacity-60";
+const turnButton: Record<(typeof BUTTON_GROUPS)[number]["id"], string> = {
+  layer: "min-h-11 rounded-xl bg-raised font-mono font-semibold hover:bg-border",
+  wide: "min-h-11 rounded-xl border-2 border-dashed border-border bg-raised font-mono font-semibold hover:bg-border",
+  rotation:
+    "min-h-11 rounded-xl border-2 border-accent bg-surface font-mono font-semibold text-accent hover:bg-raised",
+};
 const primaryButton =
   "min-h-11 rounded-xl bg-accent px-5 font-semibold text-on-accent disabled:opacity-60";
 
 type Stepping = { moves: Move[]; index: number } | null;
-
-/** The face a move turns, for highlighting. Slices and rotations have none. */
-function faceOf(move: Move): Face | null {
-  const kind = MOVE_DEFINITIONS[move.family].kind;
-  if (kind !== "face" && kind !== "wide") return null;
-  return move.family[0] as Face;
-}
 
 export function VirtualCube() {
   const { t } = useTranslation();
@@ -93,7 +95,7 @@ export function VirtualCube() {
               describedBy="cube-help"
               interactive
               arrow={nextStep ?? null}
-              highlightFace={nextStep ? faceOf(nextStep) : null}
+              highlightMove={nextStep ?? null}
             />
           </div>
           <p id="cube-help" className="text-sm text-muted">
@@ -223,22 +225,38 @@ export function VirtualCube() {
             )}
           </form>
 
-          <div role="group" aria-label={t("cube.buttonsLabel")} className="grid grid-cols-6 gap-2">
-            {BUTTON_MOVES.map((move) => {
-              const name = formatMove(move);
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  className={`${button} px-0 font-mono`}
-                  aria-label={t("cube.turn", { move: name })}
-                  onClick={() => store.getState().doMoves([move])}
-                >
-                  {name}
-                </button>
-              );
-            })}
-          </div>
+          {BUTTON_GROUPS.map((group) => (
+            <div
+              key={group.id}
+              role="group"
+              aria-labelledby={`cube-buttons-${group.id}`}
+              aria-describedby={`cube-buttons-${group.id}-help`}
+              className="flex flex-col gap-2"
+            >
+              <h2 id={`cube-buttons-${group.id}`} className="font-semibold">
+                {t(`cube.buttons.${group.id}.title`)}
+              </h2>
+              <p id={`cube-buttons-${group.id}-help`} className="-mt-1 text-sm text-muted">
+                {t(`cube.buttons.${group.id}.help`)}
+              </p>
+              <div className="grid grid-cols-6 gap-2">
+                {group.moves.map((move) => {
+                  const name = formatMove(move);
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      className={turnButton[group.id]}
+                      aria-label={t("cube.turn", { move: name })}
+                      onClick={() => store.getState().doMoves([move])}
+                    >
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
 
           <div className="rounded-2xl border border-border bg-surface p-4">
             <h2 className="font-semibold">{t("cube.history")}</h2>

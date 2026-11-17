@@ -60,6 +60,20 @@ test("turns with buttons, undoes, and scrambles", async ({ page }) => {
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(status).toHaveAttribute("data-solved", "true");
 
+  // Every whole-cube rotation has both directions, and two-layer moves have buttons.
+  const rotations = page.getByRole("group", { name: "Turn the whole cube" });
+  for (const move of ["x", "x'", "y", "y'", "z", "z'"]) {
+    await rotations.getByRole("button", { name: `Turn ${move}`, exact: true }).click();
+  }
+  await expect(history).toHaveText("x x' y y' z z'");
+  await expect(status).toHaveAttribute("data-solved", "true");
+  await page
+    .getByRole("group", { name: "Turn two layers" })
+    .getByRole("button", { name: "Turn r", exact: true })
+    .click();
+  await expect(history).toHaveText("x x' y y' z z' r");
+  await page.getByRole("button", { name: "Reset" }).click();
+
   await page.getByRole("button", { name: "Scramble" }).click();
   await expect(page.getByTestId("cube-scramble")).toHaveText(/^([URFDLB]['2]? ?){15,}$/, {
     timeout: 30_000,
@@ -87,5 +101,29 @@ test("turns a layer when you swipe it", async ({ page }) => {
   await page.mouse.move(box.x + 8, box.y + box.height / 2 - 60, { steps: 5 });
   await page.mouse.up();
   await expect(history).toHaveText("R x");
+  expect(errors).toEqual([]);
+});
+
+test("turns the whole cube with a right-drag or a Shift-drag", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Mouse buttons and Shift are for desktops.");
+  const { cube, errors, history } = await openCube(page);
+  const box = (await cube.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+
+  // Starting on a sticker, a right-drag up turns the whole cube (x), not a layer.
+  await page.mouse.move(x, y);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(x, y - 60, { steps: 5 });
+  await page.mouse.up({ button: "right" });
+  await expect(history).toHaveText("x");
+
+  await page.keyboard.down("Shift");
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 60, y, { steps: 5 });
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+  await expect(history).toHaveText("x y");
   expect(errors).toEqual([]);
 });
