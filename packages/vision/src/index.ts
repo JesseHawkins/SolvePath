@@ -1,6 +1,11 @@
 /**
  * @solvepath/vision
  *
- * Grip-and-spin scan tracking, face detection, color clustering, mark detection, and scan validation. Runs inside a Web Worker.
+ * Reading a real cube from the camera: face finding, sticker colors, color
+ * clustering, motion, and putting the scanned faces together into a cube.
+ * Pure TypeScript with no DOM, so it runs in a Web Worker and in tests.
  */
-export {};
+export * from "./color";
+export * from "./image";
+export * from "./hungarian";
+export * from "./grid";
