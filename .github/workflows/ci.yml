@@ -68,8 +68,7 @@ jobs:
           cache: npm
       - name: Start the stack
         run: |
-          HASH=$(docker run --rm caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0 caddy hash-password --plaintext ci-only)
-          export ADMIN_HOME_PASSWORD_HASH="$HASH" GIT_COMMIT="${GITHUB_SHA::7}"
+          export ADMIN_HOME_PASSWORD=ci-only GIT_COMMIT="${GITHUB_SHA::7}"
           docker compose -f deploy/docker-compose.yml up -d --build --wait --wait-timeout 180
       - name: Check routes
         run: |
@@ -92,4 +91,4 @@ jobs:
       - if: always()
         run: docker compose -f deploy/docker-compose.yml logs --no-color | tail -100
         env:
-          ADMIN_HOME_PASSWORD_HASH: unused
+          ADMIN_HOME_PASSWORD: unused

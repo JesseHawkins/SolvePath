@@ -30,6 +30,7 @@ Docker Compose runs two containers:
 ```sh
 cd deploy
 cp .env.example .env     # fill it in; every value is explained there
+                         # (for ADMIN_HOME_PASSWORD, `openssl rand -hex 16` makes a good one)
 make -C .. up            # or: docker compose up -d --build
 ```
 

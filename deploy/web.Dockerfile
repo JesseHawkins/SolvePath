@@ -16,8 +16,10 @@ RUN BASE_PATH="$BASE_PATH" npm run build \
 
 FROM caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
+COPY --chmod=755 deploy/web-entrypoint.sh /usr/local/bin/web-entrypoint.sh
 COPY --from=build /app/apps/web/dist /srv/site
 COPY --from=build /app/admin-home-dist /srv/admin-home
 EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/web-entrypoint.sh"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD wget -qO- http://127.0.0.1:8081/healthz >/dev/null || exit 1

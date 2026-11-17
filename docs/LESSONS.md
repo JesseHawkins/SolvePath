@@ -58,6 +58,11 @@ A candid log, updated at the end of every milestone. It's the raw material for t
 - **cubing.js depends on its own copy of three.js (0.170.x).** We'll add our own three.js in M1. cubing's copy only matters if we import `cubing/twisty`, which we don't plan to. Check the bundle in M1.
 - **The safety check in the AI tool blocked writing a file whose text contained `docker run --rm`**, reading it as a delete command. Writing that file with the file tool instead of a shell heredoc avoided the confusion.
 
+**Found by the owner after M0 shipped**
+
+- **Admin login always failed on the first real deploy.** The setup asked people to paste a bcrypt hash into `deploy/.env`. Hashes are full of `$` signs, which need careful quoting, and the example file's placeholder hash looked real enough to leave in place. Fix: `.env` now takes a plain letters-and-numbers password (`ADMIN_HOME_PASSWORD`), and the web container hashes it at startup (`deploy/web-entrypoint.sh`). Lesson: any setup step that needs a command run _and_ special quoting will be skipped or get mangled. Make the machine do it. CI tests the real flow (wrong password gets 401, right password gets 200).
+- **Real devices passed the cubing.js check:** desktop Brave 138 ms, iPhone 14 Pro 401 ms, Pixel 250 ms (scramble, solve, and verify, including worker startup).
+
 **Do differently next time**
 
 - Start the e2e Diagnostics smoke test for any worker-using library on day one, and run it against `vite build` + `vite preview`.
