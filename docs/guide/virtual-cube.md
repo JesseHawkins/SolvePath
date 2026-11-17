@@ -16,7 +16,11 @@ The box next to the cube tells you when it's solved. Turning the whole cube does
 
 **Swipe** a row or column of stickers to turn it that way. Swipe the middle row to turn the middle slice.
 
-**Turn the whole cube** by swiping in the empty space around it. With a mouse, you can also drag anywhere with the right button, or hold **Shift** and drag. Swipe sideways to turn it like y, or up and down to turn it like x. For z, use the buttons or the keys.
+**Turn the whole cube** in any of these ways:
+
+- Press one of the six buttons along the bottom of the cube. Each shows which way the front of the cube will move.
+- **Two fingers** (on a touch screen): swipe with two fingers anywhere on the cube. Up or down turns it like x, sideways like y. **Twist** two fingers, like turning a steering wheel, to turn it like z.
+- **Mouse:** swipe in the empty space around the cube, or drag anywhere with the right button, or hold **Shift** and drag. Up or down turns it like x, sideways like y.
 
 **Turn buttons** come in three groups:
 

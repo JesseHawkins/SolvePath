@@ -175,3 +175,65 @@ test("Inspect spins the view without turning the cube", async ({ page }) => {
   await expect(history).toHaveText("R R");
   expect(errors).toEqual([]);
 });
+
+test("quick buttons on the cube turn the whole cube", async ({ page }) => {
+  const { errors, history, status } = await openCube(page);
+  const quick = page.getByRole("group", { name: "Quick whole-cube turns" });
+  for (const move of ["x", "x'", "y", "y'", "z", "z'"]) {
+    await quick.getByRole("button", { name: `Turn ${move}`, exact: true }).click();
+  }
+  await expect(history).toHaveText("x x' y y' z z'");
+  await expect(status).toHaveAttribute("data-solved", "true");
+  // They step aside while inspecting.
+  await page.getByRole("button", { name: "Inspect" }).click();
+  await expect(quick).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("two fingers turn the whole cube: drag for x and y, twist for z", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "Needs a touch screen.");
+  const { cube, errors, history } = await openCube(page);
+  const box = (await cube.boundingBox())!;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  type P = { x: number; y: number };
+  const touch = async (type: "touchStart" | "touchMove" | "touchEnd", points: P[]) =>
+    cdp.send("Input.dispatchTouchEvent", {
+      type,
+      touchPoints: points.map((p, id) => ({ x: p.x, y: p.y, id })),
+    });
+  const gesture = async (from: [P, P], to: (t: number) => [P, P]) => {
+    await touch("touchStart", from);
+    for (let i = 1; i <= 8; i++) await touch("touchMove", to(i / 8));
+    await touch("touchEnd", []);
+  };
+
+  // Both fingers move up together: x.
+  await gesture(
+    [
+      { x: cx - 50, y: cy },
+      { x: cx + 50, y: cy },
+    ],
+    (t) => [
+      { x: cx - 50, y: cy - 60 * t },
+      { x: cx + 50, y: cy - 60 * t },
+    ],
+  );
+  await expect(history).toHaveText("x");
+
+  // Twist clockwise on screen: z.
+  const at = (deg: number): [P, P] => {
+    const r = (deg * Math.PI) / 180;
+    return [
+      { x: cx - 60 * Math.cos(r), y: cy - 60 * Math.sin(r) },
+      { x: cx + 60 * Math.cos(r), y: cy + 60 * Math.sin(r) },
+    ];
+  };
+  await gesture(at(0), (t) => at(40 * t));
+  await expect(history).toHaveText("x z");
+  expect(errors).toEqual([]);
+});

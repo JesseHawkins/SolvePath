@@ -21,6 +21,8 @@ import {
   colorAt,
   DEFAULT_PROFILE,
   faceletString,
+  formatMove,
+  parseAlg,
   moveTurn,
   STICKERS,
   stickerIndexAt,
@@ -40,8 +42,9 @@ import {
   type FaceArrow,
 } from "./arrow";
 import { loadKeyMoves } from "./keys";
+import { RotationIcon } from "./RotationIcon";
 import type { CubeStore } from "./store";
-import { moveForSwipe } from "./swipe";
+import { moveForSwipe, moveForTwoFingers, type Point } from "./swipe";
 
 const QUARTER_TURN_MS = 280;
 const HALF_TURN_MS = 420;
@@ -109,6 +112,10 @@ export function CubeView({
   const swipe = useRef<{ id: number; x: number; y: number; sticker: number | null; done: boolean }>(
     null,
   );
+  // Every finger (or mouse) touching the cube, by pointer id.
+  const fingers = useRef(new Map<number, Point>());
+  // Set while two fingers are down: where they started, and whether they've made their move.
+  const twoFingers = useRef<{ start: [Point, Point]; done: boolean } | null>(null);
   // Inspect mode: dragging spins the view freely. Moves still use the normal view.
   const [inspecting, setInspecting] = useState(false);
   // False while the view is turned away from normal (inspecting, or gliding back).
@@ -140,23 +147,50 @@ export function CubeView({
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (!bridge.current || !e.isPrimary) return;
+    if (!bridge.current) return;
     if (!inspecting && (!interactive || !viewHome)) return;
     e.currentTarget.setPointerCapture(e.pointerId);
+    fingers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (!inspecting && fingers.current.size === 2) {
+      // A second finger: this is a whole-cube gesture, not a layer swipe.
+      const [a, b] = [...fingers.current.values()] as [Point, Point];
+      twoFingers.current = { start: [{ ...a }, { ...b }], done: false };
+      swipe.current = null;
+      return;
+    }
+    if (!e.isPrimary || fingers.current.size > 1) return;
     // Right-drag or Shift-drag turns the whole cube, wherever it starts.
     const wholeCube = e.button === 2 || e.shiftKey;
     swipe.current = {
       id: e.pointerId,
       x: e.clientX,
       y: e.clientY,
-      sticker: wholeCube ? null : bridge.current.pick(e.clientX, e.clientY),
+      sticker: wholeCube || inspecting ? null : bridge.current.pick(e.clientX, e.clientY),
       done: false,
     };
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
+    if (!bridge.current) return;
+    if (fingers.current.has(e.pointerId)) {
+      fingers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    const two = twoFingers.current;
+    if (two) {
+      if (two.done || fingers.current.size !== 2) return;
+      const now = [...fingers.current.values()] as [Point, Point];
+      const move = moveForTwoFingers(two.start, now, bridge.current.project);
+      if (move) {
+        two.done = true;
+        store.getState().doMoves([move]);
+      }
+      return;
+    }
+
     const s = swipe.current;
-    if (!s || s.done || s.id !== e.pointerId || !bridge.current) return;
+    if (!s || s.done || s.id !== e.pointerId) return;
     if (inspecting) {
       bridge.current.rotateView(e.clientX - s.x, e.clientY - s.y);
       s.x = e.clientX;
@@ -169,8 +203,11 @@ export function CubeView({
     store.getState().doMoves([moveForSwipe(s.sticker, drag, bridge.current.project)]);
   };
 
-  const endSwipe = () => {
-    swipe.current = null;
+  const endSwipe = (e: React.PointerEvent) => {
+    fingers.current.delete(e.pointerId);
+    if (swipe.current?.id === e.pointerId) swipe.current = null;
+    // The gesture ends when every finger is up, so lifting one finger can't start a layer swipe.
+    if (fingers.current.size === 0) twoFingers.current = null;
   };
 
   return (
@@ -223,6 +260,41 @@ export function CubeView({
       {webgl && ready && (
         <InspectControls inspecting={inspecting} onToggle={() => setInspecting((v) => !v)} />
       )}
+      {webgl && ready && interactive && !inspecting && (
+        <WholeCubeBar onMove={(move) => store.getState().doMoves([move])} />
+      )}
+    </div>
+  );
+}
+
+const WHOLE_CUBE_MOVES = parseAlg("x x' y y' z z'");
+
+/** Whole-cube turn buttons along the bottom of the view, close to your thumbs. */
+function WholeCubeBar({ onMove }: { onMove: (move: Move) => void }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      role="group"
+      aria-label={t("cube.quickTurns")}
+      // Keep presses from starting a swipe on the cube underneath.
+      onPointerDown={(e) => e.stopPropagation()}
+      className="absolute inset-x-2 bottom-2 flex justify-center gap-1.5"
+    >
+      {WHOLE_CUBE_MOVES.map((move) => {
+        const name = formatMove(move);
+        return (
+          <button
+            key={name}
+            type="button"
+            aria-label={t("cube.turn", { move: name })}
+            onClick={() => onMove(move)}
+            className="flex min-h-11 w-12 flex-col items-center justify-center rounded-xl border-2 border-accent bg-surface/90 py-0.5 font-mono text-xs font-semibold text-accent hover:bg-raised"
+          >
+            <RotationIcon move={move} />
+            {name}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -465,7 +537,8 @@ function CubeScene({
   }, [inspecting, onViewHome, invalidate]);
 
   useEffect(() => {
-    camera.lookAt(0, 0, 0);
+    // Aim a little below the middle, so the cube sits higher and clears the buttons at the bottom.
+    camera.lookAt(0, -0.45, 0);
     invalidate();
   }, [camera, invalidate]);
 
