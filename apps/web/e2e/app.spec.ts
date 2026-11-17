@@ -28,7 +28,7 @@ test("unknown pages show a friendly not-found message", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
 });
 
-const PAGES = ["./", "guide", "guide/settings", "diagnostics"];
+const PAGES = ["./", "guide", "guide/settings", "guide/virtual-cube", "cube", "diagnostics"];
 const THEMES = ["dark", "light", "high-contrast"];
 
 for (const theme of THEMES) {

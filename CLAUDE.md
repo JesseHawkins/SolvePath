@@ -4,7 +4,7 @@ Working notes for anyone (human or AI) building SolvePath. Keep this file curren
 
 ## Current milestone
 
-**M0 (Scaffold): complete, waiting for owner review.** Next: M1 (cube core + 3D cube). Do not start M1 until the owner confirms.
+**M1 (Cube core + 3D cube): complete, waiting for owner review.** Next: M2 (vision spike). Do not start M2 until the owner confirms.
 
 Milestone plan: `docs/PLAN.md` Section 12. Changelogs: `docs/milestones/`. Lessons: `docs/LESSONS.md`.
 
@@ -60,6 +60,9 @@ tools/                 Node scripts (run directly with Node's TypeScript support
 - **Colors only from theme tokens** (`apps/web/src/theme/tokens.ts`). Tailwind's default palette is turned off, so `bg-red-500` doesn't exist. Use `bg-surface`, `text-muted`, `bg-accent`, and so on. `tokens.test.ts` checks WCAG AA contrast for every theme.
 - **All UI text in `apps/web/src/i18n/en.ts`**, used through `useTranslation()`. Keys are type-checked.
 - **Every feature and setting has a Guide entry.** Add its id to `apps/web/src/guide/registry.ts`, add a heading ending in `{#that.id}` under `docs/guide/`, and link titles with `<GuideLink anchor="that.id">`. `npm run check:guide` fails on any mismatch or broken link.
+- **Cube model rules (`packages/cube-core`):** a state is 54 sticker numbers in Kociemba facelet order. `compose(a, b)` means "do a, then b". Moves are computed from 3D geometry (`geometry.ts`, `moves.ts`), never typed in as tables. The user's frame: x right, y up, z toward the user, so F faces the user and the camera sees B. Camera-to-cube left/right only goes through `cameraGridToBackFace` in `pov.ts`.
+- **3D cube:** `apps/web/src/cube3d`. One `CubeView` per store. The store's `state` is the truth; the view plays the store's `queue`. Swipe math is in `swipe.ts` and has unit tests.
+- **One three.js:** the root `package.json` `overrides` pins `three` and `@types/three`, because cubing.js asks for an older three. Check `npm ls three` after upgrades.
 - **Workers:** anything slow (vision, solvers) runs in a Web Worker. cubing.js manages its own workers.
 - **Vite build settings for cubing.js** (`apps/web/vite.config.ts`): `modulePreload: false` plus a separate `vite-preload-helper` chunk. Without both, cubing.js's search worker imports the main app bundle and crashes on `document`. The Diagnostics e2e test guards this. Don't remove either without rerunning it.
 - **Tests:** unit tests next to the code (`*.test.ts`). Property tests with fast-check. Browser tests in `apps/web/e2e/`, including axe accessibility scans in every theme.

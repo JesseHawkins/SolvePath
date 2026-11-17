@@ -24,6 +24,7 @@ Watch-list:
 - **TypeScript:** pinned to 6.0.x because typescript-eslint supports `<6.1`. Move to TS 7 when typescript-eslint supports it.
 - **eslint-plugin-jsx-a11y:** doesn't list ESLint 10 as supported yet; we use an npm `overrides` entry. Remove the override when it does. Its rules were tested working on ESLint 10.
 - **cubing.js:** after any upgrade, run the Diagnostics e2e test (it guards the worker bundling fix in `apps/web/vite.config.ts`).
+- **three.js:** cubing.js asks for an older three.js, so the root `package.json` has an `overrides` entry for `three` and `@types/three`. Upgrade three by changing the version in `apps/web/package.json` **and** in `overrides`, then run `npm ls three` and make sure only one version shows.
 - **@react-three/fiber:** its peer range caps React (`<19.4` at last check). Check it before upgrading React.
 
 ### PocketBase (pre-1.0: breaking changes happen)

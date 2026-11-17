@@ -62,6 +62,10 @@ export default defineConfig({
     // Don't add <link rel="modulepreload"> for lazy chunks: the helper that does
     // it needs `document`, which cubing.js's search worker doesn't have.
     modulePreload: false,
+    // three.js plus react-three-fiber is about 930 kB before gzip (about 250 kB
+    // gzipped), because react-three-fiber pulls in all of three.js. It only
+    // loads on the cube pages, so we allow it here.
+    chunkSizeWarningLimit: 1000,
     rolldownOptions: {
       output: {
         codeSplitting: {
@@ -75,6 +79,12 @@ export default defineConfig({
               // Covered by the Diagnostics e2e test.
               name: "vite-preload-helper",
               test: /preload-helper/,
+            },
+            {
+              // three.js changes less often than our code, so keeping it in its own
+              // file lets browsers keep it cached across app updates.
+              name: "three",
+              test: /node_modules[\\/](three|@react-three)[\\/]/,
             },
           ],
         },

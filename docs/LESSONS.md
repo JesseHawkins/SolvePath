@@ -67,3 +67,32 @@ A candid log, updated at the end of every milestone. It's the raw material for t
 
 - Start the e2e Diagnostics smoke test for any worker-using library on day one, and run it against `vite build` + `vite preview`.
 - Put `html[data-theme=...]` on any pre-load inline CSS from the start.
+
+---
+
+## M1: Cube core and 3D cube
+
+**What worked**
+
+- **Computing moves from 3D geometry instead of typing permutation tables.** Each sticker gets a 3D position and direction; a move rotates the ones in its layers. Only 18 short lines describe all 54 moves (axis, layers, direction), and every one was right the first time. Typed-in tables are where cube programs usually hide their bugs.
+- **One composition rule, written down at the top of `state.ts`:** `compose(a, b)` means "do a, then b", and a state is the result of doing moves on a solved cube. Every other function follows it. Mixing up the order is the classic bug here, and having one rule in one place avoided it.
+- **Property tests over every kind of move** (fast-check). They caught a wrong assumption in a test within seconds (next section).
+- **Learning the mapping to cubing.js instead of typing it in.** cubing.js numbers its pieces differently and doesn't export a facelet layout. We matched each of its corner and edge spots to ours by which face turns move it, then compared full states for 2,000 random sequences. It agreed on every piece and every twist, including our use of Kociemba's twist rule.
+- **Using cubing.js where it's strong:** its notation parser (groups, commutators) and its csTimer-style key map (a public function, `cube3x3x3.keyMapping()`). Nothing copied, nothing to keep in sync.
+- **A test that checks the Guide's key table against the real key map.** Docs that list keys go stale; this one can't.
+- **Screenshots before calling it done.** The tests prove the logic, not the picture. A quick Playwright screenshot script showed the cube, the arrow, and the dimming were all right.
+
+**Surprises**
+
+- **Center labels can't be matched exactly.** When learning the center mapping to cubing.js, two matchings fit, not one. Swapping every center with the opposite one looks exactly the same under every slice and rotation. That's real math, not a bug: center data alone can't tell them apart. The test now expects exactly those two.
+- **Slice moves break the usual parity rule.** M swaps four edges and four centers but no corners, so "corner parity equals edge parity" fails until the centers go back home. A property test found this on its first run. Rule: check cube invariants only after turning the centers home.
+- **cubing.js's types don't match its runtime.** `Move.innerLayer` is typed `number | null`, but a move without a layer number has `undefined`. Our parser treats both the same.
+- **Two copies of three.js after install.** cubing.js asks for `three@0.170`, so npm kept a second copy. An npm `overrides` entry fixes it, but npm kept the old copy because the lockfile already listed it. We had to remove those lockfile entries and reinstall. Then we checked the build's source maps to be sure only one copy ships.
+- **react-three-fiber pulls in all of three.js** (about 250 kB gzipped), because it registers every three.js class. It's fine for a page that loads only when opened, but it means "tree-shaking" in the plan was wrong.
+- **eslint-plugin-jsx-a11y doesn't treat `role="application"` as interactive,** even though that's the ARIA role for a custom widget that handles its own keys. Two rules are turned off on that one element, with a comment saying why.
+- **The Guide anchor checker only allows lowercase** (`feature.virtual-cube`, not `feature.virtualCube`). The check caught it.
+
+**Do differently next time**
+
+- Write the screenshot script at the start of any visual work, not at the end.
+- When adding a library that brings its own copy of a big dependency, check `npm ls <dep>` right away, not after building.

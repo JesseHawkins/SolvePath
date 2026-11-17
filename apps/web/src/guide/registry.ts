@@ -9,7 +9,12 @@
  * This file must stay import-free: the check script loads it directly.
  */
 
-export const FEATURE_IDS = ["feature.home", "feature.guide", "feature.diagnostics"] as const;
+export const FEATURE_IDS = [
+  "feature.home",
+  "feature.guide",
+  "feature.virtual-cube",
+  "feature.diagnostics",
+] as const;
 
 export const SETTINGS_KEYS = ["settings.appearance.theme"] as const;
 

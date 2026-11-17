@@ -47,6 +47,8 @@
   "overrides": {
     "eslint-plugin-jsx-a11y": {
       "eslint": "$eslint"
-    }
+    },
+    "three": "0.187.0",
+    "@types/three": "0.187.0"
   }
 }

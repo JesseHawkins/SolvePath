@@ -9,5 +9,8 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "cubing": "0.66.1"
   }
 }
