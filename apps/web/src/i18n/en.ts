@@ -58,13 +58,11 @@ export const en = {
     intro:
       "A cube you can turn on the screen. Try moves, or practice before you use your real cube.",
     label: "Virtual cube",
-    help: "Swipe a row of stickers to turn it. To turn the whole cube, use the buttons at the bottom of the cube, or swipe with two fingers (twist two fingers to turn it like z). With a mouse, swipe in the space around the cube, or drag anywhere with the right button (or hold Shift). With a keyboard, click the cube first, then use the keys listed in the Guide.",
+    help: "Swipe a row of stickers to turn it, with a finger or the mouse. To turn the whole cube, use the buttons along the bottom of the cube. With a keyboard, click the cube first, then use the keys listed in the Guide.",
     noWebgl:
       "This browser can't draw 3D right now. Try turning on hardware acceleration, or use a different browser.",
     inspect: "Inspect",
-    quickTurns: "Quick whole-cube turns",
-    inspectHint:
-      "Drag to look around. Moves still turn the faces from your normal view. Press Inspect again to go back.",
+    inspectHint: "Drag to look around.",
     solved: "Solved!",
     notSolved: "Not solved yet",
     moveCount_one: "{{count}} move",
@@ -93,7 +91,6 @@ export const en = {
       },
       rotation: {
         title: "Turn the whole cube",
-        help: "Turns the cube in your hands. No pieces move, so it stays solved if it was solved.",
       },
     },
     turn: "Turn {{move}}",

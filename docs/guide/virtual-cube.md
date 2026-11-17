@@ -16,17 +16,12 @@ The box next to the cube tells you when it's solved. Turning the whole cube does
 
 **Swipe** a row or column of stickers to turn it that way. Swipe the middle row to turn the middle slice.
 
-**Turn the whole cube** in any of these ways:
+**Turn the whole cube** with the six buttons along the bottom of the cube: x, x', y, y', z, and z'. Each button's picture shows which way the front of the cube will move: up, down, left, right, clockwise, or counterclockwise. Swipes only ever turn layers, never the whole cube, so you can't turn it by accident. If two fingers touch the cube at once, nothing happens.
 
-- Press one of the six buttons along the bottom of the cube. Each shows which way the front of the cube will move.
-- **Two fingers** (on a touch screen): swipe with two fingers anywhere on the cube. Up or down turns it like x, sideways like y. **Twist** two fingers, like turning a steering wheel, to turn it like z.
-- **Mouse:** swipe in the empty space around the cube, or drag anywhere with the right button, or hold **Shift** and drag. Up or down turns it like x, sideways like y.
-
-**Turn buttons** come in three groups:
+**Turn buttons** beside the cube come in two groups:
 
 - **Turn one layer:** the six faces and the three middle layers (M, E, S).
 - **Turn two layers:** a face and the middle layer next to it, written with a small letter. For example, r is R and M' together.
-- **Turn the whole cube:** x, y, and z. These have an outline so they stand out, because no pieces move.
 
 **Keyboard:** click or tap the cube first, then press these keys. They're the same keys many speedcubing sites use, so your fingers may already know them.
 

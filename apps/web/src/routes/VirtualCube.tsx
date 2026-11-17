@@ -15,11 +15,13 @@ import { createCubeStore } from "../cube3d/store";
 import { GuideLink } from "../guide/GuideLink";
 import { useCubeSettings } from "../settings/cubeSettings";
 
-/** Turn buttons in three groups. Each row of one-layer moves shares an axis. */
+/**
+ * Layer turn buttons in two groups. Each row of one-layer moves shares an axis.
+ * Whole-cube turns (x, y, z) are buttons inside the cube view instead.
+ */
 const BUTTON_GROUPS = [
   { id: "layer", moves: parseAlg("U U' D D' E E' R R' L L' M M' F F' B B' S S'") },
   { id: "wide", moves: parseAlg("u u' d d' r r' l l' f f' b b'") },
-  { id: "rotation", moves: parseAlg("x x' y y' z z'") },
 ] as const;
 const HISTORY_SHOWN = 40;
 
@@ -28,8 +30,6 @@ const button =
 const turnButton: Record<(typeof BUTTON_GROUPS)[number]["id"], string> = {
   layer: "min-h-11 rounded-xl bg-raised font-mono font-semibold hover:bg-border",
   wide: "min-h-11 rounded-xl border-2 border-dashed border-border bg-raised font-mono font-semibold hover:bg-border",
-  rotation:
-    "min-h-11 rounded-xl border-2 border-accent bg-surface font-mono font-semibold text-accent hover:bg-raised",
 };
 const primaryButton =
   "min-h-11 rounded-xl bg-accent px-5 font-semibold text-on-accent disabled:opacity-60";

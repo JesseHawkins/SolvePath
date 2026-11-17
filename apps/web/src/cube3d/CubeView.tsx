@@ -44,7 +44,7 @@ import {
 import { loadKeyMoves } from "./keys";
 import { RotationIcon } from "./RotationIcon";
 import type { CubeStore } from "./store";
-import { moveForSwipe, moveForTwoFingers, type Point } from "./swipe";
+import { moveForSwipe } from "./swipe";
 
 const QUARTER_TURN_MS = 280;
 const HALF_TURN_MS = 420;
@@ -113,9 +113,7 @@ export function CubeView({
     null,
   );
   // Every finger (or mouse) touching the cube, by pointer id.
-  const fingers = useRef(new Map<number, Point>());
-  // Set while two fingers are down: where they started, and whether they've made their move.
-  const twoFingers = useRef<{ start: [Point, Point]; done: boolean } | null>(null);
+  const fingers = useRef(new Set<number>());
   // Inspect mode: dragging spins the view freely. Moves still use the normal view.
   const [inspecting, setInspecting] = useState(false);
   // False while the view is turned away from normal (inspecting, or gliding back).
@@ -150,47 +148,21 @@ export function CubeView({
     if (!bridge.current) return;
     if (!inspecting && (!interactive || !viewHome)) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    fingers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    if (!inspecting && fingers.current.size === 2) {
-      // A second finger: this is a whole-cube gesture, not a layer swipe.
-      const [a, b] = [...fingers.current.values()] as [Point, Point];
-      twoFingers.current = { start: [{ ...a }, { ...b }], done: false };
+    fingers.current.add(e.pointerId);
+    if (fingers.current.size > 1) {
+      // A second finger: do nothing until every finger is up, so a stray touch can't turn a layer.
       swipe.current = null;
       return;
     }
-    if (!e.isPrimary || fingers.current.size > 1) return;
-    // Right-drag or Shift-drag turns the whole cube, wherever it starts.
-    const wholeCube = e.button === 2 || e.shiftKey;
-    swipe.current = {
-      id: e.pointerId,
-      x: e.clientX,
-      y: e.clientY,
-      sticker: wholeCube || inspecting ? null : bridge.current.pick(e.clientX, e.clientY),
-      done: false,
-    };
+    // Only layers turn by swiping. Whole-cube turns are the buttons at the bottom.
+    const sticker = inspecting ? null : bridge.current.pick(e.clientX, e.clientY);
+    if (!inspecting && sticker === null) return;
+    swipe.current = { id: e.pointerId, x: e.clientX, y: e.clientY, sticker, done: false };
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!bridge.current) return;
-    if (fingers.current.has(e.pointerId)) {
-      fingers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    }
-
-    const two = twoFingers.current;
-    if (two) {
-      if (two.done || fingers.current.size !== 2) return;
-      const now = [...fingers.current.values()] as [Point, Point];
-      const move = moveForTwoFingers(two.start, now, bridge.current.project);
-      if (move) {
-        two.done = true;
-        store.getState().doMoves([move]);
-      }
-      return;
-    }
-
     const s = swipe.current;
-    if (!s || s.done || s.id !== e.pointerId) return;
+    if (!s || s.done || s.id !== e.pointerId || !bridge.current) return;
     if (inspecting) {
       bridge.current.rotateView(e.clientX - s.x, e.clientY - s.y);
       s.x = e.clientX;
@@ -198,7 +170,7 @@ export function CubeView({
       return;
     }
     const drag = { x: e.clientX - s.x, y: e.clientY - s.y };
-    if (Math.hypot(drag.x, drag.y) < SWIPE_PX) return;
+    if (s.sticker === null || Math.hypot(drag.x, drag.y) < SWIPE_PX) return;
     s.done = true;
     store.getState().doMoves([moveForSwipe(s.sticker, drag, bridge.current.project)]);
   };
@@ -206,8 +178,6 @@ export function CubeView({
   const endSwipe = (e: React.PointerEvent) => {
     fingers.current.delete(e.pointerId);
     if (swipe.current?.id === e.pointerId) swipe.current = null;
-    // The gesture ends when every finger is up, so lifting one finger can't start a layer swipe.
-    if (fingers.current.size === 0) twoFingers.current = null;
   };
 
   return (
@@ -230,7 +200,6 @@ export function CubeView({
       onPointerMove={onPointerMove}
       onPointerUp={endSwipe}
       onPointerCancel={endSwipe}
-      onContextMenu={(e) => interactive && e.preventDefault()}
       className={`relative aspect-square w-full touch-none select-none rounded-3xl outline-none focus-visible:ring-4 focus-visible:ring-focus ${
         inspecting ? "cursor-grab active:cursor-grabbing" : ""
       }`}
@@ -260,7 +229,7 @@ export function CubeView({
       {webgl && ready && (
         <InspectControls inspecting={inspecting} onToggle={() => setInspecting((v) => !v)} />
       )}
-      {webgl && ready && interactive && !inspecting && (
+      {webgl && ready && interactive && (
         <WholeCubeBar onMove={(move) => store.getState().doMoves([move])} />
       )}
     </div>
@@ -269,13 +238,16 @@ export function CubeView({
 
 const WHOLE_CUBE_MOVES = parseAlg("x x' y y' z z'");
 
-/** Whole-cube turn buttons along the bottom of the view, close to your thumbs. */
+/**
+ * Whole-cube turn buttons along the bottom of the view. These are the only
+ * way to turn the whole cube by touch or mouse; swipes only turn layers.
+ */
 function WholeCubeBar({ onMove }: { onMove: (move: Move) => void }) {
   const { t } = useTranslation();
   return (
     <div
       role="group"
-      aria-label={t("cube.quickTurns")}
+      aria-label={t("cube.buttons.rotation.title")}
       // Keep presses from starting a swipe on the cube underneath.
       onPointerDown={(e) => e.stopPropagation()}
       className="absolute inset-x-2 bottom-2 flex justify-center gap-1.5"
@@ -320,7 +292,7 @@ function InspectControls({ inspecting, onToggle }: { inspecting: boolean; onTogg
       {inspecting && (
         <p
           aria-live="polite"
-          className="pointer-events-none absolute inset-x-3 bottom-3 rounded-xl bg-bg/85 px-3 py-2 text-center text-sm"
+          className="pointer-events-none absolute left-3 top-3 max-w-[50%] rounded-xl bg-bg/85 px-3 py-2 text-sm"
         >
           {t("cube.inspectHint")}
         </p>
