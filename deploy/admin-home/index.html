@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>SolvePath admin</title>
+    <link rel="stylesheet" href="admin.css" />
+  </head>
+  <body>
+    <main>
+      <h1>SolvePath admin</h1>
+
+      <section>
+        <h2>Service health</h2>
+        <ul>
+          <li>Web app: <span id="health-web">checking...</span></li>
+          <li>PocketBase: <span id="health-pb">checking...</span></li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>PocketBase admin</h2>
+        <p>
+          The admin UI is never public. From the server's network, open
+          <code>http://&lt;server&gt;:8090/_/</code>, or use an SSH tunnel:
+          <code>ssh -L 8090:127.0.0.1:8090 &lt;server&gt;</code>, then open
+          <code>http://localhost:8090/_/</code>.
+        </p>
+      </section>
+
+      <section>
+        <h2>Versions</h2>
+        <pre id="versions">loading...</pre>
+      </section>
+
+      <section>
+        <h2>Backups</h2>
+        <p id="backups">Backup status arrives with the backup setup in M11.</p>
+      </section>
+    </main>
+    <script src="admin.js"></script>
+  </body>
+</html>

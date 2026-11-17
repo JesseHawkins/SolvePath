@@ -1,0 +1,60 @@
+# SolvePath full mode: the web app (Caddy) plus accounts and sync (PocketBase).
+#
+#   cp .env.example .env    # then fill it in
+#   docker compose up -d --build
+#
+# Default mode runs behind your own front proxy (see front-proxy.Caddyfile.example).
+# For a server that should get its own HTTPS certificates, add the standalone file:
+#   docker compose -f docker-compose.yml -f docker-compose.standalone.yml up -d --build
+name: solvepath
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    image: solvepath-web:local
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:8080}
+      ADMIN_HOME_USER: ${ADMIN_HOME_USER:-admin}
+      ADMIN_HOME_PASSWORD_HASH: ${ADMIN_HOME_PASSWORD_HASH:?Set ADMIN_HOME_PASSWORD_HASH in deploy/.env (see .env.example)}
+    ports:
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8088}:8080"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/healthz >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+
+  pocketbase:
+    build:
+      context: ../server
+    image: solvepath-pocketbase:0.40.6
+    restart: unless-stopped
+    # Admin UI access: bound to localhost on the server by default.
+    # Reach it with an SSH tunnel: ssh -L 8090:127.0.0.1:8090 your-server
+    ports:
+      - "${PB_ADMIN_BIND:-127.0.0.1}:${PB_ADMIN_PORT:-8090}:8090"
+    volumes:
+      - pb_data:/pb_data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8090/api/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  pb_data:
+  caddy_data:
+  caddy_config:

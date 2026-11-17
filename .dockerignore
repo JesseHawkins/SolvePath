@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+.git
+.certs
+**/.env
+test-results
+playwright-report
+coverage
+packages/test-fixtures/.y4m-cache

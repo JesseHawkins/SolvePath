@@ -1,0 +1,10 @@
+# Standalone mode: Caddy listens on ports 80 and 443 and gets HTTPS
+# certificates automatically. SITE_ADDRESS must be your domain name.
+services:
+  web:
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Set SITE_ADDRESS to your domain, for example solvepath.app}
+    ports: !override
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"

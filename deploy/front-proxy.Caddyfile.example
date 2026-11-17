@@ -1,0 +1,18 @@
+# Add this site block to the Caddy that already serves your other sites.
+# It handles HTTPS for the app's hostname and passes everything to the
+# SolvePath stack, which listens on 127.0.0.1:8088 by default (WEB_PORT).
+#
+# If your front Caddy runs in Docker, 127.0.0.1 means "inside that
+# container". Either set WEB_BIND=0.0.0.0 in deploy/.env and use the host's
+# LAN address below, or put both on a shared Docker network and use web:8080.
+
+cube.example.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8088
+
+	# Optional, for family-only testing: allow only your home network...
+	#   @outside not remote_ip 192.168.0.0/16 10.0.0.0/8
+	#   respond @outside 403
+	# ...or ask everyone for a shared password (hash: caddy hash-password).
+	#   basic_auth { family $2a$14$replace-with-a-real-hash }
+}

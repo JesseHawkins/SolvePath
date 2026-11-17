@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="description" content="__APP_TAGLINE__" />
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>__APP_NAME__</title>
+    <style>
+      /* Paint the dark background before the app loads, so there is no white flash. */
+      html[data-theme="dark"] {
+        background: #0b0d12;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>This app needs JavaScript turned on.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

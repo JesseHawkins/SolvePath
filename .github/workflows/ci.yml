@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Actions are pinned by commit SHA (tag in the comment) so they can't change under us.
+jobs:
+  check:
+    name: Lint, types, unit tests, build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run check:guide
+      - run: npm run check:licenses
+      - run: npm run build
+
+  e2e:
+    name: Browser tests (base path ${{ matrix.base_path }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        base_path: ["/", "/cube/"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          BASE_PATH: ${{ matrix.base_path }}
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-${{ strategy.job-index }}
+          path: playwright-report
+          retention-days: 7
+
+  stack:
+    name: Docker Compose stack
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Start the stack
+        run: |
+          HASH=$(docker run --rm caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0 caddy hash-password --plaintext ci-only)
+          export ADMIN_HOME_PASSWORD_HASH="$HASH" GIT_COMMIT="${GITHUB_SHA::7}"
+          docker compose -f deploy/docker-compose.yml up -d --build --wait --wait-timeout 180
+      - name: Check routes
+        run: |
+          set -eu
+          B=http://127.0.0.1:8088
+          check() { want=$1; shift; got=$(curl -s -o /dev/null -w '%{http_code}' "$@"); echo "$got (want $want) $*"; test "$got" = "$want"; }
+          check 200 $B/healthz
+          check 200 $B/api/health
+          check 200 $B/
+          check 200 $B/guide/privacy
+          check 404 $B/_/
+          check 401 $B/admin-home/
+          check 200 -u admin:ci-only $B/admin-home/versions.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Browser tests through Caddy (real security headers)
+        run: npx playwright test --project=chromium
+        env:
+          E2E_BASE_URL: http://127.0.0.1:8088/
+      - if: always()
+        run: docker compose -f deploy/docker-compose.yml logs --no-color | tail -100
+        env:
+          ADMIN_HOME_PASSWORD_HASH: unused

@@ -1,0 +1,13 @@
+{
+  "name": "@solvepath/config",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MPL-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./brand.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
