@@ -70,6 +70,14 @@ export const en = {
     scrambledWith: "Scrambled with",
     undo: "Undo",
     reset: "Reset",
+    arrows: {
+      legend: "Arrows",
+      section: "Section arrows",
+      sectionHelp: "A straight arrow on the part of the cube that moves, pointing the way it goes.",
+      face: "Face arrows",
+      faceHelp:
+        "A circle on the face that turns, going the way that face turns. Two-layer and middle moves still get straight arrows.",
+    },
     buttons: {
       layer: {
         title: "Turn one layer",

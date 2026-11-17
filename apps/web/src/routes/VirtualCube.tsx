@@ -9,9 +9,11 @@ import {
   solvedState,
   type Move,
 } from "@solvepath/cube-core";
+import { ARROW_STYLES } from "../cube3d/arrow";
 import { CubeView } from "../cube3d/CubeView";
 import { createCubeStore } from "../cube3d/store";
 import { GuideLink } from "../guide/GuideLink";
+import { useCubeSettings } from "../settings/cubeSettings";
 
 /** Turn buttons in three groups. Each row of one-layer moves shares an axis. */
 const BUTTON_GROUPS = [
@@ -44,6 +46,8 @@ export function VirtualCube() {
   const [text, setText] = useState("");
   const [error, setError] = useState(false);
   const [stepping, setStepping] = useState<Stepping>(null);
+  const arrowStyle = useCubeSettings((s) => s.arrowStyle);
+  const setArrowStyle = useCubeSettings((s) => s.setArrowStyle);
 
   const nextStep = stepping ? stepping.moves[stepping.index] : undefined;
 
@@ -95,6 +99,7 @@ export function VirtualCube() {
               describedBy="cube-help"
               interactive
               arrow={nextStep ?? null}
+              arrowStyle={arrowStyle}
               highlightMove={nextStep ?? null}
             />
           </div>
@@ -224,6 +229,36 @@ export function VirtualCube() {
               </div>
             )}
           </form>
+
+          <fieldset className="rounded-2xl border border-border bg-surface p-4">
+            <legend className="px-1 font-semibold">
+              <GuideLink anchor="settings.cube.arrows">{t("cube.arrows.legend")}</GuideLink>
+            </legend>
+            <div className="flex flex-col gap-2">
+              {ARROW_STYLES.map((style) => (
+                <div key={style} className="flex min-h-11 items-start gap-3">
+                  <input
+                    id={`cube-arrows-${style}`}
+                    type="radio"
+                    name="cube-arrow-style"
+                    value={style}
+                    checked={arrowStyle === style}
+                    onChange={() => setArrowStyle(style)}
+                    aria-describedby={`cube-arrows-${style}-help`}
+                    className="mt-1 size-5 accent-accent"
+                  />
+                  <div>
+                    <label htmlFor={`cube-arrows-${style}`} className="block font-medium">
+                      {t(`cube.arrows.${style}`)}
+                    </label>
+                    <p id={`cube-arrows-${style}-help`} className="text-sm text-muted">
+                      {t(`cube.arrows.${style}Help`)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </fieldset>
 
           {BUTTON_GROUPS.map((group) => (
             <div

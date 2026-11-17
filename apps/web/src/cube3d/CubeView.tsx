@@ -30,7 +30,15 @@ import {
   type Vec3,
 } from "@solvepath/cube-core";
 import { useThemeTokens } from "../theme/useThemeTokens";
-import { arcDirection, arcPoint, arrowFor, CAMERA_POSITION, type ArcArrow } from "./arrow";
+import {
+  arcDirection,
+  arcPoint,
+  arrowFor,
+  CAMERA_POSITION,
+  type ArcArrow,
+  type ArrowStyle,
+  type FaceArrow,
+} from "./arrow";
 import { loadKeyMoves } from "./keys";
 import type { CubeStore } from "./store";
 import { moveForSwipe } from "./swipe";
@@ -60,6 +68,8 @@ export interface CubeViewProps {
   highlightMove?: Move | null;
   /** Shows an arrow for this move. */
   arrow?: Move | null;
+  /** Straight arrows on the moving section, or circles on the turning face. */
+  arrowStyle?: ArrowStyle;
   /** Lets the user turn the cube by swiping or with the keyboard. */
   interactive?: boolean;
 }
@@ -89,6 +99,7 @@ export function CubeView({
   profile = DEFAULT_PROFILE,
   highlightMove = null,
   arrow = null,
+  arrowStyle = "section",
   interactive = false,
 }: CubeViewProps) {
   const [webgl] = useState(hasWebGL);
@@ -178,6 +189,7 @@ export function CubeView({
             profile={profile}
             highlightMove={highlightMove}
             arrow={arrow}
+            arrowStyle={arrowStyle}
             bridgeRef={bridge}
             onReady={setReady}
           />
@@ -203,6 +215,7 @@ interface SceneProps {
   profile: CubeProfile;
   highlightMove: Move | null;
   arrow: Move | null;
+  arrowStyle: ArrowStyle;
   bridgeRef: RefObject<Bridge | null>;
   onReady: (ready: boolean) => void;
 }
@@ -235,7 +248,15 @@ function roundedSquare(size: number, radius: number): THREE.ShapeGeometry {
 const Z = new THREE.Vector3(0, 0, 1);
 const AXES = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
 
-function CubeScene({ store, profile, highlightMove, arrow, bridgeRef, onReady }: SceneProps) {
+function CubeScene({
+  store,
+  profile,
+  highlightMove,
+  arrow,
+  arrowStyle,
+  bridgeRef,
+  onReady,
+}: SceneProps) {
   const { camera, gl, invalidate } = useThree();
   const tokens = useThemeTokens();
 
@@ -427,17 +448,114 @@ function CubeScene({ store, profile, highlightMove, arrow, bridgeRef, onReady }:
       <directionalLight position={[3, 6, 5]} intensity={1.6} />
       <directionalLight position={[-4, -2, -3]} intensity={0.5} />
       <primitive object={cube.group} />
-      {arrow && <TurnArrow move={arrow} color={tokens.accent} outline={tokens.bg} />}
+      {arrow && (
+        <TurnArrow move={arrow} style={arrowStyle} color={tokens.accent} outline={tokens.bg} />
+      )}
     </>
   );
 }
 
-function TurnArrow({ move, color, outline }: { move: Move; color: string; outline: string }) {
-  const placement = useMemo(() => arrowFor(move), [move]);
-  return placement.kind === "arc" ? (
-    <ArcTurnArrow arc={placement} color={color} outline={outline} />
-  ) : (
-    <StripTurnArrow placement={placement} color={color} outline={outline} />
+function TurnArrow({
+  move,
+  style,
+  color,
+  outline,
+}: {
+  move: Move;
+  style: ArrowStyle;
+  color: string;
+  outline: string;
+}) {
+  const placement = useMemo(() => arrowFor(move, style), [move, style]);
+  switch (placement.kind) {
+    case "arc":
+      return <ArcTurnArrow arc={placement} color={color} outline={outline} />;
+    case "face":
+      return <FaceTurnArrow arrow={placement} color={color} outline={outline} />;
+    case "strip":
+      return <StripTurnArrow placement={placement} color={color} outline={outline} />;
+  }
+}
+
+const RING_RADIUS = 0.95;
+const RING_WIDTH = 0.2;
+const RING_HEAD_LENGTH = 0.5;
+const RING_HEAD_HALF_WIDTH = 0.3;
+const RING_SPAN = 1.5 * Math.PI; // three quarters of a circle
+
+/**
+ * Flat shapes for a circular arrow lying in the XY plane, seen from +Z.
+ * `turn` 1 goes counterclockwise, -1 clockwise. `grow` makes an outline.
+ */
+function ringArrowShapes(turn: 1 | -1, double: boolean, grow: number): THREE.Shape[] {
+  const headAngle = RING_HEAD_LENGTH / RING_RADIUS;
+  const start = -Math.PI / 2 - turn * (Math.PI / 4);
+  const end = start + turn * RING_SPAN;
+  const tips = double ? [end, end - turn * headAngle * 0.8] : [end];
+  const ringEnd = tips.at(-1)! - turn * headAngle;
+  const at = (angle: number, radius: number) =>
+    new THREE.Vector2(Math.cos(angle) * radius, Math.sin(angle) * radius);
+
+  const outer = RING_RADIUS + RING_WIDTH / 2 + grow;
+  const inner = RING_RADIUS - RING_WIDTH / 2 - grow;
+  const steps = 48;
+  const first = start - turn * (grow / RING_RADIUS);
+  const ring: THREE.Vector2[] = [];
+  for (let i = 0; i <= steps; i++) ring.push(at(first + ((ringEnd - first) * i) / steps, outer));
+  for (let i = steps; i >= 0; i--) ring.push(at(first + ((ringEnd - first) * i) / steps, inner));
+
+  const heads = tips.map((tip) => {
+    const base = tip - turn * headAngle;
+    const half = RING_HEAD_HALF_WIDTH + grow;
+    return new THREE.Shape([
+      at(base, RING_RADIUS - half),
+      at(tip + turn * (grow / RING_RADIUS) * 1.6, RING_RADIUS),
+      at(base, RING_RADIUS + half),
+    ]);
+  });
+  return [new THREE.Shape(ring), ...heads];
+}
+
+/** A circular arrow on the face that turns. */
+function FaceTurnArrow({
+  arrow,
+  color,
+  outline,
+}: {
+  arrow: FaceArrow;
+  color: string;
+  outline: string;
+}) {
+  const { turn, double, hidden } = arrow;
+  const geometries = useMemo(
+    () => ({
+      fill: new THREE.ShapeGeometry(ringArrowShapes(turn, double, 0)),
+      edge: new THREE.ShapeGeometry(ringArrowShapes(turn, double, 0.05)),
+    }),
+    [turn, double],
+  );
+  useEffect(
+    () => () => {
+      geometries.fill.dispose();
+      geometries.edge.dispose();
+    },
+    [geometries],
+  );
+  const quaternion = useMemo(
+    () => new THREE.Quaternion().setFromUnitVectors(Z, new THREE.Vector3(...arrow.normal)),
+    [arrow.normal],
+  );
+  // A circle for a face you can't see floats beside the cube and shows through it.
+  const material = { side: THREE.DoubleSide, depthTest: !hidden, transparent: hidden };
+  return (
+    <group position={arrow.center} quaternion={quaternion} renderOrder={hidden ? 10 : 0}>
+      <mesh geometry={geometries.edge} renderOrder={hidden ? 10 : 0}>
+        <meshBasicMaterial color={outline} opacity={hidden ? 0.45 : 1} {...material} />
+      </mesh>
+      <mesh geometry={geometries.fill} position={[0, 0, 0.01]} renderOrder={hidden ? 11 : 0}>
+        <meshBasicMaterial color={color} opacity={hidden ? 0.6 : 1} {...material} />
+      </mesh>
+    </group>
   );
 }
 

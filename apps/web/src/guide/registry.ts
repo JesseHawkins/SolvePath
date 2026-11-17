@@ -16,7 +16,7 @@ export const FEATURE_IDS = [
   "feature.diagnostics",
 ] as const;
 
-export const SETTINGS_KEYS = ["settings.appearance.theme"] as const;
+export const SETTINGS_KEYS = ["settings.appearance.theme", "settings.cube.arrows"] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
 export type SettingsKey = (typeof SETTINGS_KEYS)[number];

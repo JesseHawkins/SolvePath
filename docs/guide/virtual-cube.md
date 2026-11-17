@@ -53,3 +53,5 @@ Press **One at a time** to go slowly. An arrow shows which way the next move tur
 - When part of the cube turns, a straight arrow lies on the part that moves. That part stays bright while the rest goes dim. Two-layer moves get a wider arrow.
 - When the whole cube turns, a big curved arrow wraps around the cube.
 - Half turns (like R2) have two arrowheads.
+
+You can switch the arrows for face turns to circles. See [Arrows](#settings.cube.arrows).

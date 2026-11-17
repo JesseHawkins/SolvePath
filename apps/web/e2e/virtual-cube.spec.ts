@@ -127,3 +127,15 @@ test("turns the whole cube with a right-drag or a Shift-drag", async ({ page, is
   await expect(history).toHaveText("x y");
   expect(errors).toEqual([]);
 });
+
+test("remembers the arrow style", async ({ page }) => {
+  const { errors } = await openCube(page);
+  const section = page.getByRole("radio", { name: "Section arrows" });
+  const face = page.getByRole("radio", { name: "Face arrows" });
+  await expect(section).toBeChecked();
+  await face.check();
+  await page.reload();
+  await expect(page.getByTestId("cube-view")).toHaveAttribute("data-ready", "true");
+  await expect(face).toBeChecked();
+  expect(errors).toEqual([]);
+});

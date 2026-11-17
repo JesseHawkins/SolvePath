@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { parseAlg, type Vec3 } from "@solvepath/cube-core";
-import { arcDirection, arcPoint, arrowFor, type ArcArrow, type StripArrow } from "./arrow";
+import {
+  arcDirection,
+  arcPoint,
+  arrowFor,
+  type ArcArrow,
+  type FaceArrow,
+  type StripArrow,
+} from "./arrow";
 
 const strip = (alg: string) => arrowFor(parseAlg(alg)[0]!) as StripArrow;
 const arc = (alg: string) => arrowFor(parseAlg(alg)[0]!) as ArcArrow;
@@ -71,5 +78,45 @@ describe("arrowFor, whole-cube rotations", () => {
     const a = arc("y");
     const angle = (a.from + a.to) / 2;
     expect(arcDirection(a, angle)[0]).toBeLessThan(0);
+  });
+});
+
+describe("arrowFor, face arrows", () => {
+  const face = (alg: string) => arrowFor(parseAlg(alg)[0]!, "face") as FaceArrow;
+  const CLOCKWISE = -1;
+  const COUNTERCLOCKWISE = 1;
+
+  it("draws R as a clockwise circle on the right face", () => {
+    expect(face("R")).toMatchObject({
+      kind: "face",
+      face: "R",
+      normal: [1, 0, 0],
+      turn: CLOCKWISE,
+      hidden: false,
+    });
+    expect(face("R'").turn).toBe(COUNTERCLOCKWISE);
+  });
+
+  it("shows every plain face turn as clockwise seen from that face", () => {
+    for (const f of ["U", "R", "F", "D", "L", "B"]) {
+      expect(face(f).turn, f).toBe(CLOCKWISE);
+      expect(face(`${f}'`).turn, `${f}'`).toBe(COUNTERCLOCKWISE);
+    }
+  });
+
+  it("floats the circle beside the cube for faces you can't see", () => {
+    for (const f of ["U", "R", "F"]) expect(face(f).hidden, f).toBe(false);
+    for (const f of ["D", "L", "B"]) expect(face(f).hidden, f).toBe(true);
+    expect(face("L").center[0]).toBeLessThan(-2);
+  });
+
+  it("uses two heads for half turns", () => {
+    expect(face("U2").double).toBe(true);
+  });
+
+  it("keeps straight arrows for two-layer moves and middle slices, curved ones for the whole cube", () => {
+    expect(arrowFor(parseAlg("r")[0]!, "face")).toMatchObject({ kind: "strip", layers: 2 });
+    expect(arrowFor(parseAlg("M")[0]!, "face").kind).toBe("strip");
+    expect(arrowFor(parseAlg("x")[0]!, "face").kind).toBe("arc");
   });
 });
