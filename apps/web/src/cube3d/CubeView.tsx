@@ -428,6 +428,8 @@ function CubeScene({
     store.setState({ queue: [] });
   }, [store]);
 
+  /** The glow around the layers that will move. Hidden while a turn plays. */
+  const glow = useRef<THREE.Group>(null);
   const highlighted = useMemo(() => {
     if (!highlightMove) return null;
     const t = moveTurn(highlightMove);
@@ -515,6 +517,8 @@ function CubeScene({
   }, [camera, invalidate]);
 
   useFrame((_, delta) => {
+    if (glow.current)
+      glow.current.visible = turn.current === null && store.getState().queue.length === 0;
     const v = view.current;
     if (v && !inspecting && 1 - Math.abs(v.quaternion.w) > 1e-7) {
       const step = prefersReducedMotion() ? 1 : 1 - Math.exp(-Math.min(delta, 0.05) * 12);
@@ -577,6 +581,7 @@ function CubeScene({
       turn.current = null;
       recolor();
     }
+    if (glow.current) glow.current.visible = false;
     invalidate();
   });
 
@@ -587,11 +592,172 @@ function CubeScene({
       <directionalLight position={[-4, -2, -3]} intensity={0.5} />
       <group ref={view}>
         <primitive object={cube.group} />
+        {highlightMove && <LayerGlow ref={glow} move={highlightMove} color={tokens.accent} />}
         {arrow && (
           <TurnArrow move={arrow} style={arrowStyle} color={tokens.accent} outline={tokens.bg} />
         )}
       </group>
     </>
+  );
+}
+
+/** How far each glow shell reaches past the moving layers, and how strong it is. */
+const GLOW_SHELLS = [
+  { pad: 0.05, opacity: 0.6 },
+  { pad: 0.12, opacity: 0.3 },
+  { pad: 0.2, opacity: 0.14 },
+] as const;
+
+/** Width of the frame drawn around the moving band, in cubie widths. It fits in the gaps. */
+const FRAME_WIDTH = 0.07;
+
+/**
+ * A thin frame on the cube's surface around the band of layers [low, high]
+ * along `axis`: a rectangle on each face the band touches. It sits just above
+ * the stickers and runs along the gaps between them.
+ */
+function bandFrameGeometry(axis: number, low: number, high: number): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const lift = 1.5 + 0.012;
+  const half = FRAME_WIDTH / 2;
+  const point = (n: number, sign: number, a: number, va: number, b: number, vb: number) => {
+    const p = [0, 0, 0];
+    p[n] = sign * lift;
+    p[a] = va;
+    p[b] = vb;
+    return p;
+  };
+  // One strip (a thin rectangle) on face (n, sign), from (a0, b0) to (a1, b1) in the face's own axes.
+  const strip = (
+    n: number,
+    sign: number,
+    a: number,
+    b: number,
+    [a0, a1]: [number, number],
+    [b0, b1]: [number, number],
+  ) => {
+    const c = [
+      point(n, sign, a, a0, b, b0),
+      point(n, sign, a, a1, b, b0),
+      point(n, sign, a, a1, b, b1),
+      point(n, sign, a, a0, b, b1),
+    ];
+    for (const i of [0, 1, 2, 0, 2, 3]) positions.push(...c[i]!);
+  };
+  // A rectangle outline [a0, a1] x [b0, b1] made of four strips centered on its edges.
+  const rectangle = (
+    n: number,
+    sign: number,
+    a: number,
+    b: number,
+    [a0, a1]: number[],
+    [b0, b1]: number[],
+  ) => {
+    strip(n, sign, a, b, [a0! - half, a1! + half], [b0! - half, b0! + half]);
+    strip(n, sign, a, b, [a0! - half, a1! + half], [b1! - half, b1! + half]);
+    strip(n, sign, a, b, [a0! - half, a0! + half], [b0! + half, b1! - half]);
+    strip(n, sign, a, b, [a1! - half, a1! + half], [b0! + half, b1! - half]);
+  };
+  for (const n of [0, 1, 2]) {
+    const [a, b] = [0, 1, 2].filter((i) => i !== n) as [number, number];
+    for (const sign of [1, -1]) {
+      if (n === axis) {
+        // The band's outer face, if it has one: frame the whole face.
+        if (sign * 1.5 === (sign > 0 ? high : low))
+          rectangle(n, sign, a, b, [-1.5, 1.5], [-1.5, 1.5]);
+        continue;
+      }
+      const range = (i: number) => (i === axis ? [low, high] : [-1.5, 1.5]);
+      rectangle(n, sign, a, b, range(a), range(b));
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  return geometry;
+}
+
+/**
+ * A steady halo around the layers a move will turn, so it's easy to see what
+ * moves. Each shell is drawn from the inside (back faces), so it only shows as
+ * a rim around the layers and never covers their stickers. The sides where the
+ * moving layers meet the rest of the cube are left open, so the glow doesn't
+ * spill onto parts that stay still. Whole-cube turns get no glow (their arrow
+ * already goes around the whole cube).
+ */
+function LayerGlow({
+  move,
+  color,
+  ref,
+}: {
+  move: Move;
+  color: string;
+  ref: React.Ref<THREE.Group>;
+}) {
+  const shells = useMemo(() => {
+    const t = moveTurn(move);
+    if (t.kind === "rotation") return null;
+    const low = Math.min(...t.layers) - 0.5;
+    const high = Math.max(...t.layers) + 0.5;
+    return GLOW_SHELLS.map(({ pad, opacity }) => {
+      const min = [-1.5 - pad, -1.5 - pad, -1.5 - pad];
+      const max = [1.5 + pad, 1.5 + pad, 1.5 + pad];
+      // Along the turn axis, only an outer face of the cube gets padding.
+      min[t.axis] = low === -1.5 ? low - pad : low;
+      max[t.axis] = high === 1.5 ? high + pad : high;
+      const size = [0, 1, 2].map((i) => max[i]! - min[i]!) as [number, number, number];
+      const geometry = new THREE.BoxGeometry(...size);
+      geometry.translate(
+        ...([0, 1, 2].map((i) => (max[i]! + min[i]!) / 2) as [number, number, number]),
+      );
+      // BoxGeometry's six sides, in order: +x, -x, +y, -y, +z, -z.
+      const materials = [0, 1, 2, 3, 4, 5].map((side) => {
+        const axis = Math.floor(side / 2);
+        const end = side % 2 === 0 ? high : low;
+        const inside = axis === t.axis && Math.abs(end) !== 1.5;
+        return new THREE.MeshBasicMaterial({
+          color,
+          side: THREE.BackSide,
+          transparent: true,
+          opacity,
+          depthWrite: false,
+          visible: !inside,
+        });
+      });
+      return { geometry, materials };
+    });
+  }, [move, color]);
+  const frame = useMemo(() => {
+    const t = moveTurn(move);
+    if (t.kind === "rotation") return null;
+    return {
+      geometry: bandFrameGeometry(t.axis, Math.min(...t.layers) - 0.5, Math.max(...t.layers) + 0.5),
+      material: new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }),
+    };
+  }, [move, color]);
+  useEffect(
+    () => () => {
+      frame?.geometry.dispose();
+      frame?.material.dispose();
+    },
+    [frame],
+  );
+  useEffect(
+    () => () => {
+      for (const shell of shells ?? []) {
+        shell.geometry.dispose();
+        for (const m of shell.materials) m.dispose();
+      }
+    },
+    [shells],
+  );
+  if (!shells) return null;
+  return (
+    <group ref={ref}>
+      {shells.map((shell, i) => (
+        <mesh key={i} geometry={shell.geometry} material={shell.materials} renderOrder={-1} />
+      ))}
+      {frame && <mesh geometry={frame.geometry} material={frame.material} />}
+    </group>
   );
 }
 

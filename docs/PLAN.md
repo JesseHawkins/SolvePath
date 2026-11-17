@@ -651,11 +651,11 @@ Tests pass, build works, `docs/milestones/MXX.md` changelog, `docs/LESSONS.md` u
 
 ### 12.3 Owner requests queued for later
 
-Small requests from the owner that wait for a later build. Do each one in the build named, then move it to that milestone's changelog.
+Small requests from the owner that wait for a later build. Do each one in the build named, then move it to that milestone's changelog. Done so far: the highlight glow (M2).
 
-| Asked      | Request                                                                                                                                                                                                                                                                                                       | Do in                    |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| 2026-11-16 | **Stronger highlight on the virtual cube.** When a face or section is highlighted (One at a time, and later the solving guide), add a glow or similar callout so it's even more obvious what will move. Today the rest of the cube just dims. Must work in every theme and with reduced motion (no flashing). | Next build (start of M2) |
+| Asked            | Request | Do in |
+| ---------------- | ------- | ----- |
+| (none right now) |         |       |
 
 ---
 
